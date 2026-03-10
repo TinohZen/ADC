@@ -1,14 +1,14 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, Navigate } from 'react-router-dom'; // Ajoute Navigate ici
 import { LogOut, User } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion'; // Vérifie si c'est motion/react ou framer-motion selon ta version
 
 export default function Layout() {
   const navigate = useNavigate();
   const userStr = localStorage.getItem('adc_user');
   
+  // ✅ CORRECTION : Utilise le composant de redirection au lieu de la fonction navigate()
   if (!userStr) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" replace />;
   }
   
   const user = JSON.parse(userStr);
