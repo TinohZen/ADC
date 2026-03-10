@@ -1,22 +1,19 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import pg from "pg";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const { Pool } = pg;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Connexion à PostgreSQL via la variable DATABASE_URL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
+
+const app = express();
+app.use(express.json({ limit: "10mb" }));
 
 // Initialisation des tables au démarrage
 const initDb = async () => {
@@ -70,12 +67,8 @@ const initDb = async () => {
 
 initDb();
 
-const app = express();
-app.use(express.json({ limit: "10mb" }));
-
 // --- ROUTES API ---
 
-// Auth & Login
 app.post("/api/login", async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -114,7 +107,6 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// Users Management
 app.get("/api/users", async (req, res) => {
   try {
     const users = await pool.query(
@@ -140,7 +132,6 @@ app.put("/api/users/:id/status", async (req, res) => {
   }
 });
 
-// Meetings Management
 app.get("/api/meetings", async (req, res) => {
   try {
     const meetings = await pool.query(
@@ -161,7 +152,6 @@ app.post("/api/meetings", async (req, res) => {
     );
     const meetingId = result.rows[0].id;
 
-    // Initialiser les présences pour tous les membres approuvés
     const members = await pool.query(
       "SELECT id FROM users WHERE status = 'approved'"
     );
@@ -177,7 +167,6 @@ app.post("/api/meetings", async (req, res) => {
   }
 });
 
-// Attendance Management
 app.get("/api/meetings/:id/attendance", async (req, res) => {
   const { id } = req.params;
   try {
@@ -212,41 +201,5 @@ app.put("/api/meetings/:id/attendance", async (req, res) => {
   }
 });
 
-// Serveur Frontend
-async function startServer() {
-  const PORT = process.env.PORT || 3000;
-
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-    app.get("*", async (req, res) => {
-      const url = req.originalUrl;
-      let template = fs.readFileSync(
-        path.resolve(__dirname, "index.html"),
-        "utf-8"
-      );
-      template = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(template);
-    });
-  } else {
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Serveur actif sur le port ${PORT}`);
-  });
-}
-
-// Pour le développement local
-if (process.env.NODE_ENV !== "production") {
-  startServer();
-}
-
-// Export pour Vercel (indispensable)
+// ⚠️ EXPORT INDISPENSABLE POUR VERCEL (PAS DE app.listen)
 export default app;
