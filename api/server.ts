@@ -149,5 +149,54 @@ app.put("/api/meetings/:id/attendance", async (req, res) => {
   }
 });
 
+app.get("/api/stats", async (req, res) => {
+  try {
+    // 1. Total des membres (qui ont le rôle 'member')
+    const membersResult = await pool.query(
+      "SELECT COUNT(*) FROM users WHERE role = 'member'"
+    );
+    const totalMembers = parseInt(membersResult.rows[0].count);
+
+    // 2. Membres en attente d'approbation
+    const pendingResult = await pool.query(
+      "SELECT COUNT(*) FROM users WHERE status = 'pending' AND role = 'member'"
+    );
+    const pendingMembers = parseInt(pendingResult.rows[0].count);
+
+    // 3. Total des réunions
+    const meetingsResult = await pool.query("SELECT COUNT(*) FROM meetings");
+    const totalMeetings = parseInt(meetingsResult.rows[0].count);
+
+    // 4. Pourcentage de présence global
+    const attendanceResult = await pool.query(`
+      SELECT 
+        COUNT(*) as total_records,
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as total_present
+      FROM attendance
+    `);
+
+    const totalRecords = parseInt(attendanceResult.rows[0].total_records);
+    const totalPresent = parseInt(
+      attendanceResult.rows[0].total_present || "0"
+    );
+
+    let attendancePercentage = 0;
+    if (totalRecords > 0) {
+      attendancePercentage = Math.round((totalPresent / totalRecords) * 100);
+    }
+
+    // On renvoie les données au format JSON attendu par le Front-end
+    res.json({
+      totalMembers,
+      pendingMembers,
+      totalMeetings,
+      attendancePercentage,
+    });
+  } catch (err: any) {
+    console.error("Erreur API Stats:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ⚠️ EXPORT INDISPENSABLE POUR VERCEL (PAS DE app.listen)
 export default app;
