@@ -80,6 +80,37 @@ app.put("/api/users/:id/status", async (req, res) => {
   }
 });
 
+app.put("/api/users/:id", (req, res) => {
+  const { id } = req.params;
+  const { first_name, last_name, phone, email, photo_url } = req.body;
+  try {
+    pg.prepare(
+      `
+      UPDATE users SET first_name = ?, last_name = ?, phone = ?, email = ?, photo_url = ?
+      WHERE id = ?
+    `
+    ).run(first_name, last_name, phone, email, photo_url, id);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/users/:id/password", (req, res) => {
+  const { id } = req.params;
+  const { currentPassword, newPassword } = req.body;
+
+  const user = pg
+    .prepare("SELECT password FROM users WHERE id = ?")
+    .get(id) as { password: string };
+  if (!user || user.password !== currentPassword) {
+    return res.status(400).json({ error: "Mot de passe actuel incorrect" });
+  }
+
+  pg.prepare("UPDATE users SET password = ? WHERE id = ?").run(newPassword, id);
+  res.json({ success: true });
+});
+
 app.get("/api/meetings", async (req, res) => {
   try {
     const meetings = await pool.query(

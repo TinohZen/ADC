@@ -42,8 +42,11 @@ export default function Layout() {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/60">
-              {user.photo_url ? (
+          <div 
+              onClick={() => navigate('/profile')}
+              className="flex items-center gap-3 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/60 cursor-pointer hover:bg-slate-200 transition-colors"
+            >
+            {user.photo_url ? (
                 <img src={user.photo_url} alt="Profile" className="w-7 h-7 rounded-full object-cover shadow-sm" />
               ) : (
                 <div className="w-7 h-7 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center">
