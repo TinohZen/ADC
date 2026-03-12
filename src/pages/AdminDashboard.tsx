@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -135,33 +134,33 @@ export default function AdminDashboard() {
         </div>
         
         <div className="flex bg-slate-200/50 rounded-xl p-1 border border-slate-200/50">
-          <button
-            onClick={() => setActiveTab('members')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
-              activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Users size={16} />
-            Membres
-          </button>
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
-              activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Calendar size={16} />
-            Réunions
-          </button>
-
-          <Link
+  <button
+    onClick={() => setActiveTab('members')}
+    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+      activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+    }`}
+  >
+    <Users size={16} />
+    Membres
+  </button>
+  <button
+    onClick={() => setActiveTab('meetings')}
+    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+      activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+    }`}
+  >
+    <Calendar size={16} />
+    Réunions
+  </button>
+  {/* AJOUT DU BOUTON PROFIL ICI */}
+  <Link
     to="/profile"
     className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
   >
     <User size={16} />
     Profil
   </Link>
-        </div>
+</div>
       </div>
 
       {/* Stats Cards */}

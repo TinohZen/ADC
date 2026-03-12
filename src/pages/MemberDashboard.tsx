@@ -4,7 +4,6 @@ import { Calendar, Clock, Users, Search, TrendingUp, UserCheck } from 'lucide-re
 import { format, isAfter, isBefore, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, User } from 'lucide-react';
 
 export default function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'meetings' | 'members'>('meetings');
@@ -78,35 +77,36 @@ export default function MemberDashboard() {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Espace Membre</h2>
           <p className="text-slate-500 text-sm mt-1">Consultez les activités de l'association</p>
         </div>
-
         <div className="flex bg-slate-200/50 rounded-xl p-1 border border-slate-200/50">
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
-              activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Calendar size={16} />
-            Réunions
-          </button>
-          <button
-            onClick={() => setActiveTab('members')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
-              activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Users size={16} />
-            Membres
-          </button>
-
-          <Link
+  <button
+    onClick={() => setActiveTab('members')}
+    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+      activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+    }`}
+  >
+    <Users size={16} />
+    Membres
+  </button>
+  <button
+    onClick={() => setActiveTab('meetings')}
+    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+      activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+    }`}
+  >
+    <Calendar size={16} />
+    Réunions
+  </button>
+  {/* AJOUT DU BOUTON PROFIL ICI */}
+  <Link
     to="/profile"
     className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
   >
     <User size={16} />
     Profil
   </Link>
-        </div>
+</div>
+
+        
       </div>
 
       {/* Stats Cards */}
