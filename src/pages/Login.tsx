@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,28 +91,43 @@ export default function Login() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="block w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                placeholder="0600000000"
+                placeholder="03........"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
+  <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
+  <div className="relative group">
+    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+      <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+    </div>
+    
+    <input
+      type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      /* J'ai changé pr-4 en pr-12 pour laisser de la place à l'icône de l'œil */
+      className="block w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+      placeholder="••••••••"
+      required
+    />
+
+    {/* Bouton pour afficher/masquer */}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none"
+    >
+      {showPassword ? (
+        <EyeOff className="h-5 w-5" />
+      ) : (
+        <Eye className="h-5 w-5" />
+      )}
+    </button>
+  </div>
+</div>
 
           <button
             type="submit"
