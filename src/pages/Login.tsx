@@ -54,7 +54,7 @@ export default function Login() {
       >
         <div className="text-center mb-8">
         <img 
-            src="/logo_adc.png" 
+            src="/logoADC.png" 
             alt="ADC Logo" 
             className="w-32 h-32 mx-auto mb-4 object-contain"
             onError={(e) => {

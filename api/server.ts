@@ -149,6 +149,42 @@ app.put("/api/meetings/:id/attendance", async (req, res) => {
   }
 });
 
+// --- RÉCUPÉRER le compte rendu d'une réunion ---
+app.get("/api/meetings/:id/report", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT report FROM meetings WHERE id = $1",
+      [id]
+    );
+    if (result.rows.length > 0) {
+      // On renvoie le compte rendu (ou une chaîne vide s'il n'y en a pas encore)
+      res.json({ report: result.rows[0].report || "" });
+    } else {
+      res.status(404).json({ error: "Réunion non trouvée" });
+    }
+  } catch (err: any) {
+    console.error("Erreur GET report:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SAUVEGARDER/METTRE À JOUR le compte rendu ---
+app.put("/api/meetings/:id/report", async (req, res) => {
+  const { id } = req.params;
+  const { report } = req.body; // Le texte du compte rendu envoyé par le Front-end
+  try {
+    await pool.query("UPDATE meetings SET report = $1 WHERE id = $2", [
+      report,
+      id,
+    ]);
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Erreur PUT report:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/stats", async (req, res) => {
   try {
     // 1. Total des membres (qui ont le rôle 'member')

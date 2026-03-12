@@ -4,7 +4,8 @@ import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, T
 import { format } from 'date-fns';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'motion/react';
+
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');

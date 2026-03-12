@@ -24,7 +24,7 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
           <img 
-              src="/logo_adc.png" 
+              src="/logoADC.png" 
               alt="ADC Logo" 
               className="w-10 h-10 object-contain"
               onError={(e) => {
