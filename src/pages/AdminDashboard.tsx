@@ -133,35 +133,41 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Tableau de bord</h2>
           <p className="text-slate-500 text-sm mt-1">Gérez les membres et les réunions de l'association</p>
         </div>
-        
-        <div className="flex bg-slate-200/50 rounded-xl p-1 border border-slate-200/50">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-200/50 rounded-xl border border-slate-200/50 w-full sm:w-auto">
+  
+  {/* Bouton Membres */}
   <button
     onClick={() => setActiveTab('members')}
-    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+    className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
       activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
     }`}
   >
-    <Users size={15} />
-    Membres
+    <Users size={18} />
+    <span className="hidden sm:inline">Membres</span> {/* Masqué sur mobile, visible dès 'sm' */}
   </button>
+
+  {/* Bouton Réunions */}
   <button
     onClick={() => setActiveTab('meetings')}
-    className={`px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+    className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
       activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
     }`}
   >
-    <Calendar size={15} />
-    Réunions
+    <Calendar size={18} />
+    <span className="hidden sm:inline">Réunions</span>
   </button>
-  {/* AJOUT DU BOUTON PROFIL ICI */}
+
+  {/* Bouton Profil */}
   <Link
     to="/profile"
-    className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+    className="flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
   >
-    <User size={15} />
-    Profil
+    <User size={18} />
+    <span className="hidden sm:inline">Profil</span>
   </Link>
 </div>
+        
+       
       </div>
 
       {/* Stats Cards */}
