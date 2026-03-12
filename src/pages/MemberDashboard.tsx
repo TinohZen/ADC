@@ -4,6 +4,7 @@ import { Calendar, Clock, Users, Search, TrendingUp, UserCheck } from 'lucide-re
 import { format, isAfter, isBefore, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle, User } from 'lucide-react';
 
 export default function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'meetings' | 'members'>('meetings');

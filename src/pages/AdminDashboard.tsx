@@ -4,6 +4,7 @@ import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, T
 import { format } from 'date-fns';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle, User } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
