@@ -4,6 +4,7 @@ import { Calendar, Clock, Users, Search, TrendingUp, UserCheck } from 'lucide-re
 import { format, isAfter, isBefore, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, User } from 'lucide-react';
 
 export default function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'meetings' | 'members'>('meetings');
@@ -97,6 +98,14 @@ export default function MemberDashboard() {
             <Users size={16} />
             Membres
           </button>
+
+          <Link
+    to="/profile"
+    className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+  >
+    <User size={16} />
+    Profil
+  </Link>
         </div>
       </div>
 
