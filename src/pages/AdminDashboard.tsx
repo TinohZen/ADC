@@ -152,6 +152,14 @@ export default function AdminDashboard() {
             <Calendar size={16} />
             Réunions
           </button>
+
+          <Link
+    to="/profile"
+    className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+  >
+    <User size={16} />
+    Profil
+  </Link>
         </div>
       </div>
 
