@@ -234,5 +234,50 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
+// --- MODIFIER une réunion (Update) ---
+app.put("/api/meetings/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, description, date, time } = req.body;
+  try {
+    await pool.query(
+      "UPDATE meetings SET title = $1, description = $2, date = $3, time = $4 WHERE id = $5",
+      [title, description, date, time, id]
+    );
+    res.json({ success: true, message: "Réunion mise à jour" });
+  } catch (err: any) {
+    console.error("Erreur PUT meeting:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SUPPRIMER une réunion (Delete) ---
+app.delete("/api/meetings/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Magie de PostgreSQL : grâce au "ON DELETE CASCADE" qu'on a mis lors de la création
+    // de la base de données, supprimer une réunion supprimera AUTOMATIQUEMENT
+    // toutes les présences (attendance) liées à cette réunion !
+    await pool.query("DELETE FROM meetings WHERE id = $1", [id]);
+    res.json({ success: true, message: "Réunion supprimée avec succès" });
+  } catch (err: any) {
+    console.error("Erreur DELETE meeting:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SUPPRIMER un membre (Delete User) ---
+app.delete("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Là aussi, grâce au "ON DELETE CASCADE", supprimer un membre
+    // supprimera son historique de présence aux réunions.
+    await pool.query("DELETE FROM users WHERE id = $1", [id]);
+    res.json({ success: true, message: "Membre supprimé avec succès" });
+  } catch (err: any) {
+    console.error("Erreur DELETE user:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ⚠️ EXPORT INDISPENSABLE POUR VERCEL (PAS DE app.listen)
 export default app;
