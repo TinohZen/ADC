@@ -85,7 +85,7 @@ export default function MemberDashboard() {
       activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
     }`}
   >
-    <Users size={16} />
+    <Users size={15} />
     Membres
   </button>
   <button
@@ -94,7 +94,7 @@ export default function MemberDashboard() {
       activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
     }`}
   >
-    <Calendar size={16} />
+    <Calendar size={15} />
     Réunions
   </button>
   {/* AJOUT DU BOUTON PROFIL ICI */}
@@ -102,7 +102,7 @@ export default function MemberDashboard() {
     to="/profile"
     className="px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
   >
-    <User size={16} />
+    <User size={15} />
     Profil
   </Link>
 </div>
