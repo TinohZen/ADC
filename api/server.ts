@@ -6,66 +6,14 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Connexion à PostgreSQL via la variable DATABASE_URL
+// Connexion à PostgreSQL (Supabase) via la variable DATABASE_URL configurée sur Vercel
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }, // Requis pour les connexions à Supabase
 });
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
-
-// Initialisation des tables au démarrage
-const initDb = async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        phone TEXT UNIQUE NOT NULL,
-        email TEXT,
-        photo_url TEXT,
-        role TEXT DEFAULT 'member',
-        status TEXT DEFAULT 'pending',
-        password TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS meetings (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS attendance (
-        meeting_id INTEGER REFERENCES meetings(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        status TEXT DEFAULT 'absent',
-        PRIMARY KEY (meeting_id, user_id)
-      );
-    `);
-
-    // Admin par défaut
-    const res = await pool.query(
-      "SELECT COUNT(*) FROM users WHERE role = 'admin'"
-    );
-    if (parseInt(res.rows[0].count) === 0) {
-      await pool.query(`
-        INSERT INTO users (first_name, last_name, phone, email, role, status, password)
-        VALUES ('Admin', 'ADC', '0000000000', 'admin@adc.org', 'admin', 'approved', 'admin123')
-      `);
-    }
-    console.log("✅ Base de données initialisée");
-  } catch (err) {
-    console.error("❌ Erreur DB init:", err);
-  }
-};
-
-initDb();
 
 // --- ROUTES API ---
 
