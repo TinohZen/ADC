@@ -80,35 +80,65 @@ app.put("/api/users/:id/status", async (req, res) => {
   }
 });
 
-app.put("/api/users/:id", (req, res) => {
+// --- CORRECTION : METTRE À JOUR le Profil utilisateur ---
+app.put("/api/users/:id", async (req, res) => {
   const { id } = req.params;
   const { first_name, last_name, phone, email, photo_url } = req.body;
   try {
-    pg.prepare(
-      `
-      UPDATE users SET first_name = ?, last_name = ?, phone = ?, email = ?, photo_url = ?
-      WHERE id = ?
-    `
-    ).run(first_name, last_name, phone, email, photo_url, id);
+    await pool.query(
+      "UPDATE users SET first_name = $1, last_name = $2, phone = $3, email = $4, photo_url = $5 WHERE id = $6",
+      [first_name, last_name, phone, email, photo_url, id]
+    );
     res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.put("/api/users/:id/password", (req, res) => {
+// --- CORRECTION : CHANGER le Mot de passe ---
+app.put("/api/users/:id/password", async (req, res) => {
   const { id } = req.params;
   const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await pool.query("SELECT password FROM users WHERE id = $1", [
+      id,
+    ]);
 
-  const user = pg
-    .prepare("SELECT password FROM users WHERE id = ?")
-    .get(id) as { password: string };
-  if (!user || user.password !== currentPassword) {
-    return res.status(400).json({ error: "Mot de passe actuel incorrect" });
+    if (user.rows.length === 0 || user.rows[0].password !== currentPassword) {
+      return res.status(400).json({ error: "Mot de passe actuel incorrect" });
+    }
+
+    await pool.query("UPDATE users SET password = $1 WHERE id = $2", [
+      newPassword,
+      id,
+    ]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  pg.prepare("UPDATE users SET password = ? WHERE id = ?").run(newPassword, id);
-  res.json({ success: true });
+// --- CORRECTION : CHANGER le Mot de passe ---
+app.put("/api/users/:id/password", async (req, res) => {
+  const { id } = req.params;
+  const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await pool.query("SELECT password FROM users WHERE id = $1", [
+      id,
+    ]);
+
+    if (user.rows.length === 0 || user.rows[0].password !== currentPassword) {
+      return res.status(400).json({ error: "Mot de passe actuel incorrect" });
+    }
+
+    await pool.query("UPDATE users SET password = $1 WHERE id = $2", [
+      newPassword,
+      id,
+    ]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/meetings", async (req, res) => {
