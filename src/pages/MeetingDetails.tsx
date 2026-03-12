@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Check, X, Calendar, Clock, FileText, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -205,6 +205,19 @@ export default function MeetingDetails() {
   const totalCount = attendance.length;
   const attendanceRate = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
 
+  const getMeetingStatus = (date: string, time: string) => {
+    const meetingDate = parseISO(`${date}T${time}`);
+    const now = new Date();
+    const diff = now.getTime() - meetingDate.getTime();
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    if (diff > 0 && diff < twoHours) return { label: 'En cours', color: 'bg-emerald-500' };
+    if (diff > twoHours) return { label: 'Passée', color: 'bg-slate-400' };
+    return { label: 'À venir', color: 'bg-blue-500' };
+  };
+
+  const status = meeting ? getMeetingStatus(meeting.date, meeting.time) : null;
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -221,7 +234,14 @@ export default function MeetingDetails() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">{meeting.title}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-slate-800 tracking-tight leading-tight">{meeting.title}</h2>
+              {status && (
+                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase text-white ${status.color}`}>
+                  {status.label}
+                </span>
+              )}
+            </div>
             <p className="text-slate-500 text-sm mt-1">Détails et présences</p>
           </div>
         </div>

@@ -53,7 +53,18 @@ export default function Login() {
         className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl mx-auto mb-5 shadow-lg shadow-emerald-600/20 rotate-3 hover:rotate-0 transition-transform">
+        <img 
+            src="/logo_adc.png" 
+            alt="ADC Logo" 
+            className="w-32 h-32 mx-auto mb-4 object-contain"
+            onError={(e) => {
+              // Fallback if image not found
+              e.currentTarget.style.display = 'none';
+              const fallback = document.getElementById('logo-fallback');
+              if (fallback) fallback.style.display = 'flex';
+            }}
+          />
+          <div id="logo-fallback" className="hidden w-16 h-16 bg-emerald-600 text-white rounded-2xl items-center justify-center font-bold text-2xl mx-auto mb-5 shadow-lg shadow-emerald-600/20 rotate-3 hover:rotate-0 transition-transform">
             ADC
           </div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Bienvenue</h1>

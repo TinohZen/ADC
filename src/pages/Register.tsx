@@ -93,6 +93,19 @@ export default function Register() {
         className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100"
       >
         <div className="text-center mb-8">
+        <img 
+            src="/logo_adc.png" 
+            alt="ADC Logo" 
+            className="w-24 h-24 mx-auto mb-4 object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = document.getElementById('logo-fallback-reg');
+              if (fallback) fallback.style.display = 'flex';
+            }}
+          />
+          <div id="logo-fallback-reg" className="hidden w-12 h-12 bg-emerald-600 text-white rounded-xl items-center justify-center font-bold text-xl mx-auto mb-4 shadow-lg shadow-emerald-600/20 rotate-3">
+            ADC
+          </div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Rejoindre l'ADC</h1>
           <p className="text-slate-500 mt-2 text-sm">Remplissez vos informations pour vous inscrire</p>
         </div>

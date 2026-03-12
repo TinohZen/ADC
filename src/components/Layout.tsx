@@ -23,9 +23,20 @@ export default function Layout() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 text-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-            <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-sm group-hover:bg-emerald-700 transition-colors">
+          <img 
+              src="/logo_adc.png" 
+              alt="ADC Logo" 
+              className="w-10 h-10 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = document.getElementById('logo-fallback-layout');
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+            <div id="logo-fallback-layout" className="hidden w-10 h-10 bg-emerald-600 text-white rounded-xl items-center justify-center font-bold text-lg shadow-sm group-hover:bg-emerald-700 transition-colors">
               ADC
             </div>
+            
             <h1 className="font-semibold text-lg hidden sm:block tracking-tight">Association des Droits de Citoyen</h1>
             <h1 className="font-semibold text-lg sm:hidden tracking-tight">ADC</h1>
           </div>

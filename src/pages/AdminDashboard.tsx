@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -97,6 +98,19 @@ export default function AdminDashboard() {
       console.error(err);
     }
   };
+
+  
+  const getMeetingStatus = (date: string, time: string) => {
+    const meetingDate = parseISO(`${date}T${time}`);
+    const now = new Date();
+    const diff = now.getTime() - meetingDate.getTime();
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    if (diff > 0 && diff < twoHours) return { label: 'En cours', color: 'bg-emerald-500' };
+    if (diff > twoHours) return { label: 'Passée', color: 'bg-slate-400' };
+    return { label: 'À venir', color: 'bg-blue-500' };
+  };
+
 
   const filteredUsers = users.filter(user => {
     const search = searchTerm.toLowerCase();
@@ -398,16 +412,23 @@ export default function AdminDashboard() {
           </AnimatePresence>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {meetings.map((meeting) => (
-              <motion.div 
-                key={meeting.id} 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col group hover:shadow-md transition-all hover:border-emerald-200"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-lg text-slate-800 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{meeting.title}</h3>
-                  <button
+            {meetings.map((meeting) => {
+              const status = getMeetingStatus(meeting.date, meeting.time);
+              return (
+                <motion.div 
+                  key={meeting.id} 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col group hover:shadow-md transition-all hover:border-emerald-200"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-slate-800 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{meeting.title}</h3>
+                      <span className={`inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase text-white mt-1 ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    <button
                     onClick={() => handleDeleteMeeting(meeting.id)}
                     className="text-slate-300 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 -mr-2 -mt-2 opacity-0 group-hover:opacity-100"
                   >
@@ -438,7 +459,8 @@ export default function AdminDashboard() {
                   Gérer les présences
                 </Link>
               </motion.div>
-            ))}
+              );
+            })}
             {meetings.length === 0 && !showNewMeeting && (
               <div className="col-span-full text-center py-16 text-slate-500 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
                 <Calendar size={48} className="mx-auto text-slate-300 mb-4" />
