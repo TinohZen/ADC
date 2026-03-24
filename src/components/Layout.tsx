@@ -37,7 +37,7 @@ export default function Layout() {
               ADC
             </div>
             
-            <h1 className="font-semibold text-lg hidden sm:block tracking-tight">Association des Droits de Citoyen</h1>
+            <h1 className="font-semibold text-lg hidden sm:block tracking-tight">Association  Dévoir et Citoyen</h1>
             <h1 className="font-semibold text-lg sm:hidden tracking-tight">ADC</h1>
           </div>
           
