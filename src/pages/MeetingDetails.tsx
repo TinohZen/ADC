@@ -88,7 +88,7 @@ export default function MeetingDetails() {
     // Header
     doc.setFontSize(20);
     doc.setTextColor(4, 120, 87); // emerald-700
-    doc.text('Association des Droits de Citoyen (ADC)', pageWidth / 2, 20, { align: 'center' });
+    doc.text('Association  Dévoir et Citoyen (ADC)', pageWidth / 2, 20, { align: 'center' });
     
     doc.setDrawColor(4, 120, 87);
     doc.setLineWidth(0.5);
