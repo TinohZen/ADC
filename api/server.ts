@@ -292,12 +292,17 @@ app.get("/api/meetings", authenticateToken, async (req, res) => {
 app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
+    // 💡 NOUVELLE REQUÊTE DYNAMIQUE :
+    // On prend TOUS les membres approuvés, et on fait un lien (LEFT JOIN) avec la table des présences.
+    // Si la présence n'existe pas encore (nouveau membre), on affiche 'absent' par défaut avec COALESCE.
     const attendance = await pool.query(
-      `SELECT a.*, u.first_name, u.last_name, u.phone, u.photo_url 
-       FROM attendance a 
-       JOIN users u ON a.user_id = u.id 
-       WHERE a.meeting_id = $1 
-       ORDER BY u.last_name, u.first_name`,
+      `SELECT 
+         u.id as user_id, u.first_name, u.last_name, u.phone, u.photo_url, 
+         COALESCE(a.status, 'absent') as status 
+       FROM users u 
+       LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
+       WHERE u.status = 'approved' AND u.role = 'member'
+       ORDER BY u.first_name, u.last_name`,
       [id]
     );
     res.json(attendance.rows);
