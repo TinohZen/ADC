@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle, User } from 'lucide-react';
-
+import { apiFetch } from '../lib/apiFetch'; 
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboard() {
@@ -32,16 +32,16 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const statsRes = await fetch('/api/stats');
+      const statsRes = await apiFetch('/api/stats');
       const statsData = await statsRes.json();
       setStats(statsData);
 
       if (activeTab === 'members') {
-        const res = await fetch('/api/users');
+        const res = await apiFetch('/api/users');
         const data = await res.json();
         setUsers(data);
       } else {
-        const res = await fetch('/api/meetings');
+        const res = await apiFetch('/api/meetings');
         const data = await res.json();
         setMeetings(data);
       }
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
 
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
-      await fetch(`/api/users/${id}/status`, {
+      await apiFetch(`/api/users/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce membre ?')) return;
     try {
-      await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
   const handleCreateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch('/api/meetings', {
+      await apiFetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMeeting),
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
   const handleDeleteMeeting = async (id: number) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette réunion ?')) return;
     try {
-      await fetch(`/api/meetings/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/meetings/${id}`, { method: 'DELETE' });
       fetchData();
     } catch (err) {
       console.error(err);

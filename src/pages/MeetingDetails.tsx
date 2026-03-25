@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { motion, AnimatePresence } from 'motion/react';
-
+import { apiFetch } from '../lib/apiFetch';
 export default function MeetingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,8 +28,8 @@ export default function MeetingDetails() {
     setLoading(true);
     try {
       const [meetingRes, attendanceRes] = await Promise.all([
-        fetch('/api/meetings'),
-        fetch(`/api/meetings/${id}/attendance`)
+        apiFetch('/api/meetings'),
+        apiFetch(`/api/meetings/${id}/attendance`)
       ]);
       const meetingsData = await meetingRes.json();
       const currentMeeting = meetingsData.find((m: any) => m.id === Number(id));
@@ -48,7 +48,7 @@ export default function MeetingDetails() {
   const handleUpdateAttendance = async (userId: number, status: string) => {
     if (!isAdmin) return;
     try {
-      await fetch(`/api/meetings/${id}/attendance`, {
+      await apiFetch(`/api/meetings/${id}/attendance`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, status }),
@@ -66,7 +66,7 @@ export default function MeetingDetails() {
   const handleSaveReport = async () => {
     setSavingReport(true);
     try {
-      await fetch(`/api/meetings/${id}/report`, {
+      await apiFetch(`/api/meetings/${id}/report`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ report }),

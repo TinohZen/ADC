@@ -26,20 +26,16 @@ export default function Login() {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Erreur de connexion');
-      }
+      if (!res.ok) throw new Error(data.error || 'Erreur de connexion');
+      if (data.user.status === 'pending') throw new Error('Votre compte est en attente de validation par un administrateur.');
+      if (data.user.status === 'rejected') throw new Error('Votre compte a été refusé.');
 
-      if (data.user.status === 'pending') {
-        throw new Error('Votre compte est en attente de validation par un administrateur.');
-      }
-      if (data.user.status === 'rejected') {
-        throw new Error('Votre compte a été refusé.');
-      }
-
+      // 👉 NOUVEAU : On sauvegarde le token ET les infos utilisateur
+      localStorage.setItem('adc_token', data.token); 
       localStorage.setItem('adc_user', JSON.stringify(data.user));
       navigate('/dashboard');
-    } catch (err: any) {
+    }
+     catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);

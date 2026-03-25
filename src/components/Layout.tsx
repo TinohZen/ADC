@@ -15,6 +15,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     localStorage.removeItem('adc_user');
+    localStorage.removeItem('adc_token'); // 👉 NOUVEAU : On supprime le token
     navigate('/login');
   };
 

@@ -5,7 +5,7 @@ import { format, isAfter, isBefore, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle, User } from 'lucide-react';
-
+import { apiFetch } from '../lib/apiFetch';
 export default function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'meetings' | 'members'>('meetings');
   const [meetings, setMeetings] = useState<any[]>([]);
@@ -25,16 +25,16 @@ export default function MemberDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const statsRes = await fetch('/api/stats');
+      const statsRes = await apiFetch('/api/stats');
       const statsData = await statsRes.json();
       setStats(statsData);
 
       if (activeTab === 'meetings') {
-        const res = await fetch('/api/meetings');
+        const res = await apiFetch('/api/meetings');
         const data = await res.json();
         setMeetings(data);
       } else {
-        const res = await fetch('/api/users');
+        const res = await apiFetch('/api/users');
         const data = await res.json();
         // Only show approved members to other members
         setUsers(data.filter((u: any) => u.status === 'approved'));

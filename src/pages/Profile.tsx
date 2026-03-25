@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, Lock, Camera, Save, Key } from 'lucide-react';
 import { motion } from 'motion/react';
-
+import { apiFetch } from '../lib/apiFetch';
 export default function Profile() {
   const userStr = localStorage.getItem('adc_user');
   const initialUser = userStr ? JSON.parse(userStr) : null;
@@ -49,7 +49,7 @@ export default function Profile() {
     setMessage({ type: '', text: '' });
 
     try {
-      const res = await fetch(`/api/users/${initialUser.id}`, {
+      const res = await apiFetch(`/api/users/${initialUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -77,26 +77,20 @@ export default function Profile() {
     setPassLoading(true);
     setMessage({ type: '', text: '' });
 
-    try {
-      const res = await fetch(`/api/users/${initialUser.id}/password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword: passwords.currentPassword,
-          newPassword: passwords.newPassword
-        }),
-      });
+    const res = await apiFetch(`/api/users/${initialUser.id}`, { // On a mis apiFetch ici !
+      method: 'PUT',
+      body: JSON.stringify(formData), // Note: on a retiré le headers: {'Content-Type'...} car apiFetch le fait déjà
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur lors du changement de mot de passe');
+    if (!res.ok) throw new Error('Erreur lors de la mise à jour');
+    
+    const data = await res.json(); // NOUVEAU : on lit la réponse
 
-      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setMessage({ type: 'success', text: 'Mot de passe modifié avec succès !' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setPassLoading(false);
-    }
+    // NOUVEAU : On met à jour avec l'URL renvoyée par Supabase
+    const updatedUser = { ...initialUser, ...formData, photo_url: data.photo_url }; 
+    localStorage.setItem('adc_user', JSON.stringify(updatedUser));
+    setFormData(prev => ({ ...prev, photo_url: data.photo_url })); // On met à jour l'affichage
+    setMessage({ type: 'success', text: 'Profil mis à jour avec succès !' });
   };
 
   return (
