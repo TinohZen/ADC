@@ -267,7 +267,7 @@ app.put(
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
 
-    if (req.user.role !== "admin" && req.user.id !== parseInt(id)) {
+    if (req.user.role !== "admin" && String(req.user.id) !== String(id)) {
       return res.status(403).json({ error: "Action non autorisée" });
     }
 
