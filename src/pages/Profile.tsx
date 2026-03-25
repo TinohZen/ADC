@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Save, MapPin, Camera } from 'lucide-react';
+import { User, Lock, Camera, Save, Key, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
 
@@ -17,93 +17,80 @@ export default function Profile() {
   const initialUser = userStr ? JSON.parse(userStr) : null;
 
   const [formData, setFormData] = useState({
-    first_name: initialUser?.first_name || '',
-    last_name: initialUser?.last_name || '',
-    phone: initialUser?.phone || '',
-    email: initialUser?.email || '',
-    photo_url: initialUser?.photo_url || '',
-    province: initialUser?.province || 'Antananarivo',
-    region: initialUser?.region || 'Analamanga',
-    district: initialUser?.district || 'Antananarivo-Renivohitra',
-    commune: initialUser?.commune || '',
-    fokontany: initialUser?.fokontany || ''
+    first_name: initialUser?.first_name || '', last_name: initialUser?.last_name || '',
+    phone: initialUser?.phone || '', email: initialUser?.email || '', photo_url: initialUser?.photo_url || '',
+    province: initialUser?.province || 'Antananarivo', region: initialUser?.region || 'Analamanga',
+    district: initialUser?.district || 'Antananarivo-Renivohitra', commune: initialUser?.commune || '', fokontany: initialUser?.fokontany || ''
   });
 
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  const handleProvinceChange = (e: any) => {
-    const prov = e.target.value;
-    const regions = Object.keys(MADAGASCAR_DATA[prov] || {});
-    const firstReg = regions[0] || '';
-    const firstDist = (MADAGASCAR_DATA[prov]?.[firstReg] || [])[0] || '';
-    setFormData({...formData, province: prov, region: firstReg, district: firstDist});
-  };
-
-  const handleRegionChange = (e: any) => {
-    const reg = e.target.value;
-    const districts = MADAGASCAR_DATA[formData.province]?.[reg] || [];
-    setFormData({...formData, region: reg, district: districts[0] || ''});
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await apiFetch(`/api/users/${initialUser.id}`, { method: 'PUT', body: JSON.stringify(formData) });
       const data = await res.json();
       localStorage.setItem('adc_user', JSON.stringify({ ...initialUser, ...formData, photo_url: data.photo_url }));
-      setMessage('Profil mis à jour avec succès !');
-    } catch { setMessage('Erreur lors de la mise à jour'); }
+      setMessage({ type: 'success', text: 'Profil mis à jour !' });
+    } catch { setMessage({ type: 'error', text: 'Erreur mise à jour' }); }
     finally { setLoading(false); }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwords.newPassword !== passwords.confirmPassword) return setMessage({ type: 'error', text: 'Mots de passe différents' });
+    try {
+        await apiFetch(`/api/users/${initialUser.id}/password`, { method: 'PUT', body: JSON.stringify(passwords) });
+        setMessage({ type: 'success', text: 'Mot de passe modifié !' });
+    } catch { setMessage({ type: 'error', text: 'Erreur mot de passe' }); }
+  };
+
   return (
-    <div className="max-w-xl mx-auto p-4 space-y-8">
-      <h2 className="text-2xl font-bold text-slate-800">Mon Profil</h2>
-      
-      <form onSubmit={handleUpdate} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-        <div className="flex justify-center">
-          <label className="cursor-pointer relative">
-            <img src={formData.photo_url} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md" />
-            <input type="file" className="hidden" accept="image/*" onChange={(e:any) => {
-              const reader = new FileReader();
-              reader.onloadend = () => setFormData({...formData, photo_url: reader.result as string});
-              reader.readAsDataURL(e.target.files[0]);
-            }} />
-          </label>
-        </div>
+    <div className="max-w-5xl mx-auto p-4 space-y-8">
+      <div><h2 className="text-2xl font-bold text-slate-800">Mon Profil</h2><p className="text-slate-500 text-sm">Gérez vos informations et votre sécurité</p></div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Prénom" />
-          <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Nom" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase">Province</label>
-            <select value={formData.province} onChange={handleProvinceChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA).map(p => <option key={p} value={p}>{p}</option>)}</select>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase">Région</label>
-            <select value={formData.region} onChange={handleRegionChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA[formData.province] || {}).map(r => <option key={r} value={r}>{r}</option>)}</select>
-          </div>
-        </div>
-
-        <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase">District</label>
+      <div className="grid md:grid-cols-3 gap-8">
+        {/* COLONNE GAUCHE: PROFIL */}
+        <div className="md:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2"><User size={20} className="text-emerald-600"/> Infos Personnelles</h3>
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="flex justify-center mb-6">
+                <label className="cursor-pointer relative"><img src={formData.photo_url} className="w-24 h-24 rounded-full object-cover border-4 border-slate-50 shadow-md" /><input type="file" className="hidden" accept="image/*" onChange={(e:any) => { const reader = new FileReader(); reader.onloadend = () => setFormData({...formData, photo_url: reader.result as string}); reader.readAsDataURL(e.target.files[0]); }}/></label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Prénom" />
+                <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Nom" />
+            </div>
+            {/* SÉLECTEURS GÉO */}
+            <div className="grid grid-cols-2 gap-4">
+              <select value={formData.province} onChange={(e) => { const prov = e.target.value; const reg = Object.keys(MADAGASCAR_DATA[prov])[0]; setFormData({...formData, province: prov, region: reg, district: MADAGASCAR_DATA[prov][reg][0]})}} className="p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA).map(p => <option key={p} value={p}>{p}</option>)}</select>
+              <select value={formData.region} onChange={(e) => { const reg = e.target.value; setFormData({...formData, region: reg, district: MADAGASCAR_DATA[formData.province][reg][0]})}} className="p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA[formData.province]).map(r => <option key={r} value={r}>{r}</option>)}</select>
+            </div>
             <select value={formData.district} onChange={(e) => setFormData({...formData, district: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
-                {(MADAGASCAR_DATA[formData.province]?.[formData.region] || []).map((d:string) => <option key={d} value={d}>{d}</option>)}
+                {(MADAGASCAR_DATA[formData.province][formData.region]).map((d:string) => <option key={d} value={d}>{d}</option>)}
             </select>
+            <div className="grid grid-cols-2 gap-4">
+                <input type="text" value={formData.commune} onChange={(e) => setFormData({...formData, commune: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Commune" />
+                <input type="text" value={formData.fokontany} onChange={(e) => setFormData({...formData, fokontany: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Fokontany" />
+            </div>
+            <button className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold flex items-center justify-center gap-2"><Save size={18}/> Enregistrer</button>
+          </form>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" value={formData.commune} onChange={(e) => setFormData({...formData, commune: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Commune" />
-          <input type="text" value={formData.fokontany} onChange={(e) => setFormData({...formData, fokontany: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Fokontany" />
+        {/* COLONNE DROITE: SÉCURITÉ */}
+        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><Key size={20} className="text-emerald-600"/> Sécurité</h3>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+                <input type="password" placeholder="Mot de passe actuel" onChange={(e) => setPasswords({...passwords, currentPassword: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" />
+                <input type="password" placeholder="Nouveau mot de passe" onChange={(e) => setPasswords({...passwords, newPassword: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" />
+                <input type="password" placeholder="Confirmer" onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" />
+                <button className="w-full bg-slate-800 text-white p-3 rounded-xl font-bold">Changer</button>
+            </form>
         </div>
-
-        <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg">{loading ? 'Enregistrement...' : 'Enregistrer les modifications'}</button>
-      </form>
+      </div>
     </div>
   );
 }
