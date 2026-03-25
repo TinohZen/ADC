@@ -212,7 +212,8 @@ app.get("/api/users", authenticateToken, async (req, res) => {
   }
 });
 
-app.put("/api/users/:id", authenticateToken, async (req: AuthRequest, res) => {
+// (Vérifie bien que la route /api/users/:id contient tous les champs)
+app.put("/api/users/:id", authenticateToken, async (req: any, res: any) => {
   const { id } = req.params;
   const {
     first_name,
@@ -226,26 +227,28 @@ app.put("/api/users/:id", authenticateToken, async (req: AuthRequest, res) => {
     commune,
     fokontany,
   } = req.body;
-
-  if (req.user.role !== "admin" && req.user.id !== parseInt(id)) {
-    return res.status(403).json({ error: "Action non autorisée" });
-  }
-
+  if (req.user.role !== "admin" && String(req.user.id) !== String(id))
+    return res.status(403).json({ error: "Interdit" });
   try {
-    let finalPhotoUrl = photo_url;
-    if (photo_url && photo_url.startsWith("data:image")) {
-      finalPhotoUrl = await uploadPhoto(photo_url, id);
+    let url = photo_url;
+    if (photo_url?.startsWith("data:image")) {
+      const matches = photo_url.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const buffer = Buffer.from(matches[2], "base64");
+      const fileName = `user_${id}_${Date.now()}.png`;
+      await supabase.storage
+        .from("avatars")
+        .upload(fileName, buffer, { contentType: "image/png" });
+      url = supabase.storage.from("avatars").getPublicUrl(fileName)
+        .data.publicUrl;
     }
-
     await pool.query(
-      `UPDATE users SET first_name = $1, last_name = $2, phone = $3, email = $4, photo_url = $5, 
-       province = $6, region = $7, district = $8, commune = $9, fokontany = $10 WHERE id = $11`,
+      "UPDATE users SET first_name=$1, last_name=$2, phone=$3, email=$4, photo_url=$5, province=$6, region=$7, district=$8, commune=$9, fokontany=$10 WHERE id=$11",
       [
         first_name,
         last_name,
         phone,
         email,
-        finalPhotoUrl,
+        url,
         province,
         region,
         district,
@@ -254,12 +257,11 @@ app.put("/api/users/:id", authenticateToken, async (req: AuthRequest, res) => {
         id,
       ]
     );
-    res.json({ success: true, photo_url: finalPhotoUrl });
+    res.json({ success: true, photo_url: url });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.put(
   "/api/users/:id/password",
   authenticateToken,
