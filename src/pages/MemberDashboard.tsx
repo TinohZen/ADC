@@ -117,6 +117,7 @@ export default function MemberDashboard() {
                     <div><p className="text-[10px] font-bold text-slate-400 uppercase">Fokontany</p><p className="text-sm font-semibold">{selectedUser.fokontany}</p></div>
                   </div>
                 </div>
+                
               </div>
             </motion.div>
           </motion.div>
