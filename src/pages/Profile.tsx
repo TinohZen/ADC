@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Phone, Mail, Camera, Save, MapPin } from 'lucide-react';
+import { User, Save, MapPin, Camera } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
 
@@ -34,81 +34,75 @@ export default function Profile() {
 
   const handleProvinceChange = (e: any) => {
     const prov = e.target.value;
-    const firstReg = Object.keys(MADAGASCAR_DATA[prov])[0];
-    const firstDist = MADAGASCAR_DATA[prov][firstReg][0];
+    const regions = Object.keys(MADAGASCAR_DATA[prov] || {});
+    const firstReg = regions[0] || '';
+    const firstDist = (MADAGASCAR_DATA[prov]?.[firstReg] || [])[0] || '';
     setFormData({...formData, province: prov, region: firstReg, district: firstDist});
   };
 
   const handleRegionChange = (e: any) => {
     const reg = e.target.value;
-    const firstDist = MADAGASCAR_DATA[formData.province][reg][0];
-    setFormData({...formData, region: reg, district: firstDist});
+    const districts = MADAGASCAR_DATA[formData.province]?.[reg] || [];
+    setFormData({...formData, region: reg, district: districts[0] || ''});
   };
 
-  const handleUpdate = async (e: any) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await apiFetch(`/api/users/${initialUser.id}`, { method: 'PUT', body: JSON.stringify(formData) });
       const data = await res.json();
       localStorage.setItem('adc_user', JSON.stringify({ ...initialUser, ...formData, photo_url: data.photo_url }));
-      setMessage('Profil mis à jour !');
-    } catch { setMessage('Erreur'); }
+      setMessage('Profil mis à jour avec succès !');
+    } catch { setMessage('Erreur lors de la mise à jour'); }
     finally { setLoading(false); }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-8">
-      <h2 className="text-2xl font-bold">Mon Profil</h2>
-      {message && <div className="p-4 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-center">{message}</div>}
-
-      <form onSubmit={handleUpdate} className="bg-white p-8 rounded-3xl border shadow-sm space-y-6">
+    <div className="max-w-xl mx-auto p-4 space-y-8">
+      <h2 className="text-2xl font-bold text-slate-800">Mon Profil</h2>
+      
+      <form onSubmit={handleUpdate} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
         <div className="flex justify-center">
-            <label className="cursor-pointer">
-                <img src={formData.photo_url} className="w-24 h-24 rounded-full object-cover border-4 border-slate-50 shadow-md" />
-                <input type="file" className="hidden" accept="image/*" onChange={(e:any) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setFormData({...formData, photo_url: reader.result as string});
-                    reader.readAsDataURL(e.target.files[0]);
-                }} />
-            </label>
+          <label className="cursor-pointer relative">
+            <img src={formData.photo_url} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-md" />
+            <input type="file" className="hidden" accept="image/*" onChange={(e:any) => {
+              const reader = new FileReader();
+              reader.onloadend = () => setFormData({...formData, photo_url: reader.result as string});
+              reader.readAsDataURL(e.target.files[0]);
+            }} />
+          </label>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-            <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Prénom" />
-            <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Nom" />
+          <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Prénom" />
+          <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Nom" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-            <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Province</label>
-                <select value={formData.province} onChange={handleProvinceChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
-                    {Object.keys(MADAGASCAR_DATA).map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-            </div>
-            <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Région</label>
-                <select value={formData.region} onChange={handleRegionChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
-                    {Object.keys(MADAGASCAR_DATA[formData.province]).map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-            </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase">Province</label>
+            <select value={formData.province} onChange={handleProvinceChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA).map(p => <option key={p} value={p}>{p}</option>)}</select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase">Région</label>
+            <select value={formData.region} onChange={handleRegionChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">{Object.keys(MADAGASCAR_DATA[formData.province] || {}).map(r => <option key={r} value={r}>{r}</option>)}</select>
+          </div>
         </div>
 
         <div>
             <label className="text-[10px] font-bold text-slate-400 uppercase">District</label>
             <select value={formData.district} onChange={(e) => setFormData({...formData, district: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
-                {MADAGASCAR_DATA[formData.province][formData.region].map((d:string) => <option key={d} value={d}>{d}</option>)}
+                {(MADAGASCAR_DATA[formData.province]?.[formData.region] || []).map((d:string) => <option key={d} value={d}>{d}</option>)}
             </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-            <input type="text" value={formData.commune} onChange={(e) => setFormData({...formData, commune: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Commune" />
-            <input type="text" value={formData.fokontany} onChange={(e) => setFormData({...formData, fokontany: e.target.value})} className="p-3 bg-slate-50 border rounded-xl" placeholder="Fokontany" />
+          <input type="text" value={formData.commune} onChange={(e) => setFormData({...formData, commune: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Commune" />
+          <input type="text" value={formData.fokontany} onChange={(e) => setFormData({...formData, fokontany: e.target.value})} className="p-3 bg-slate-50 border rounded-xl w-full" placeholder="Fokontany" />
         </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
-            <Save size={18}/> {loading ? 'Enregistrement...' : 'Enregistrer'}
-        </button>
+        <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-700 shadow-lg">{loading ? 'Enregistrement...' : 'Enregistrer les modifications'}</button>
       </form>
     </div>
   );
