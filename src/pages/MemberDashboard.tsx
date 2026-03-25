@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Users, Search, TrendingUp, UserCheck } from 'lucide-react';
-import { format, isAfter, isBefore, parseISO } from 'date-fns';
+import { Calendar, Clock, Users, Search, TrendingUp, UserCheck, MapPin, User, X, Mail, Phone } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'motion/react';
-import { Users, Calendar, Check, X, Plus, Trash2, Edit, MapPin, Clock, Search, TrendingUp, UserPlus, AlertCircle, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
+
 export default function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'meetings' | 'members'>('meetings');
   const [meetings, setMeetings] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({
-    totalMembers: 0,
-    totalMeetings: 0,
-    averageAttendance: 0
-  });
+  const [stats, setStats] = useState<any>({ totalMembers: 0, totalMeetings: 0, averageAttendance: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -26,236 +23,105 @@ export default function MemberDashboard() {
     setLoading(true);
     try {
       const statsRes = await apiFetch('/api/stats');
-      const statsData = await statsRes.json();
-      setStats(statsData);
+      setStats(await statsRes.json());
 
       if (activeTab === 'meetings') {
         const res = await apiFetch('/api/meetings');
-        const data = await res.json();
-        setMeetings(data);
+        setMeetings(await res.json());
       } else {
         const res = await apiFetch('/api/users');
         const data = await res.json();
-        // Only show approved members to other members
         setUsers(data.filter((u: any) => u.status === 'approved'));
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getMeetingStatus = (date: string, time: string) => {
-    const meetingDate = parseISO(`${date}T${time}`);
-    const now = new Date();
-    
-    // Simple logic: if same day and within 2 hours, it's "En cours"
-    // If before, it's "À venir"
-    // If after, it's "Passée"
-    
-    const diff = now.getTime() - meetingDate.getTime();
-    const twoHours = 2 * 60 * 60 * 1000;
-
-    if (diff > 0 && diff < twoHours) return { label: 'En cours', color: 'bg-emerald-500' };
-    if (diff > twoHours) return { label: 'Passée', color: 'bg-slate-400' };
-    return { label: 'À venir', color: 'bg-blue-500' };
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const filteredUsers = users.filter(user => {
-    const search = searchTerm.toLowerCase();
-    return (
-      user.first_name.toLowerCase().includes(search) ||
-      user.last_name.toLowerCase().includes(search) ||
-      user.phone.includes(search)
-    );
+    const s = searchTerm.toLowerCase();
+    return user.first_name.toLowerCase().includes(s) || user.last_name.toLowerCase().includes(s) || user.region?.toLowerCase().includes(s);
   });
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Espace Membre</h2>
-          <p className="text-slate-500 text-sm mt-1">Consultez les activités de l'association</p>
-        </div>
-
-              <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-200/50 rounded-xl border border-slate-200/50 w-full sm:w-auto">
-        
-        {/* Bouton Membres */}
-        <button
-          onClick={() => setActiveTab('members')}
-          className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Users size={18} />
-          <span className="hidden sm:inline">Membres</span> {/* Masqué sur mobile, visible dès 'sm' */}
-        </button>
-
-        {/* Bouton Réunions */}
-        <button
-          onClick={() => setActiveTab('meetings')}
-          className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Calendar size={18} />
-          <span className="hidden sm:inline">Réunions</span>
-        </button>
-
-        {/* Bouton Profil */}
-        <Link
-          to="/profile"
-          className="flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-        >
-          <User size={18} />
-          <span className="hidden sm:inline">Profil</span>
-        </Link>
-      </div>
-
-        
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Users size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Membres</p>
-            <h2 className="text-2xl font-bold text-slate-800">{stats.totalMembers}</h2>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Calendar size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Réunions</p>
-            <h2 className="text-2xl font-bold text-slate-800">{stats.totalMeetings}</h2>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">% Présence</p>
-            <h2 className="text-2xl font-bold text-slate-800">{stats.averageAttendance}%</h2>
-          </div>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Espace Membre</h2>
+        <div className="flex bg-slate-100 p-1 rounded-xl">
+          <button onClick={() => setActiveTab('meetings')} className={`px-4 py-2 rounded-lg text-sm font-bold ${activeTab === 'meetings' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500'}`}>Réunions</button>
+          <button onClick={() => setActiveTab('members')} className={`px-4 py-2 rounded-lg text-sm font-bold ${activeTab === 'members' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500'}`}>Membres</button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-slate-400 flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p>Chargement des données...</p>
-        </div>
-      ) : activeTab === 'meetings' ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {meetings.map((meeting) => {
-            const status = getMeetingStatus(meeting.date, meeting.time);
-            return (
-              <motion.div 
-                key={meeting.id} 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col hover:shadow-md transition-all hover:border-emerald-200 group"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-lg text-slate-800 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{meeting.title}</h3>
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase text-white ${status.color}`}>
-                    {status.label}
-                  </span>
-                </div>
-                <p className="text-slate-500 text-sm mb-5 flex-1 line-clamp-3 leading-relaxed">
-                  {meeting.description || 'Aucune description fournie.'}
-                </p>
-                
-                <div className="flex flex-col gap-2.5 mb-6 pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2.5 text-sm text-slate-600 font-medium">
-                    <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                      <Calendar size={14} />
-                    </div>
-                    <span>{format(new Date(meeting.date), 'EEEE d MMMM yyyy', { locale: fr })}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-sm text-slate-600 font-medium">
-                    <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                      <Clock size={14} />
-                    </div>
-                    <span>{meeting.time}</span>
-                  </div>
-                </div>
-
-                <Link
-                  to={`/meetings/${meeting.id}`}
-                  className="w-full py-2.5 bg-slate-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl font-semibold text-center transition-colors text-sm border border-slate-100"
-                >
-                  Voir les détails
-                </Link>
-              </motion.div>
-            );
-          })}
-          {meetings.length === 0 && (
-            <div className="col-span-full text-center py-16 text-slate-500 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
-              <Calendar size={48} className="mx-auto text-slate-300 mb-4" />
-              <p className="text-lg font-medium text-slate-600">Aucune réunion planifiée</p>
-              <p className="text-sm mt-1">Vous serez notifié lorsqu'une nouvelle réunion sera créée.</p>
+      {activeTab === 'meetings' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {meetings.map((m) => (
+            <div key={m.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+               <h3 className="font-bold text-lg mb-2">{m.title}</h3>
+               <p className="text-slate-500 text-sm mb-4 line-clamp-2">{m.description}</p>
+               <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
+                 <div className="flex items-center gap-1"><Calendar size={14}/> {format(new Date(m.date), 'dd/MM/yy')}</div>
+                 <div className="flex items-center gap-1"><Clock size={14}/> {m.time}</div>
+               </div>
+               <Link to={`/meetings/${m.id}`} className="mt-4 block text-center py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-bold">Détails</Link>
             </div>
-          )}
-        </motion.div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Rechercher un membre..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all shadow-sm"
-            />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+            <input type="text" placeholder="Chercher un membre ou une ville..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 p-3 bg-white border border-slate-200 rounded-2xl outline-none" />
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          >
-            {filteredUsers.map((user) => (
-              <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 shadow-sm">
-                {user.photo_url ? (
-                  <img src={user.photo_url} alt="" className="w-12 h-12 rounded-full object-cover border border-slate-100" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold border border-emerald-100">
-                    {user.first_name[0]}{user.last_name[0]}
-                  </div>
-                )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredUsers.map((u) => (
+              <div key={u.id} onClick={() => setSelectedUser(u)} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 cursor-pointer hover:shadow-md transition-all">
+                <img src={u.photo_url} className="w-12 h-12 rounded-full object-cover" />
                 <div>
-                  <div className="font-bold text-slate-800">{user.first_name} {user.last_name}</div>
-                  <div className="text-xs text-slate-500 flex items-center gap-1">
-                    <UserCheck size={12} className="text-emerald-500" />
-                    Membre actif
-                  </div>
+                  <div className="font-bold text-slate-800">{u.first_name} {u.last_name}</div>
+                  <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1"><MapPin size={10}/> {u.district}, {u.region}</div>
                 </div>
               </div>
             ))}
-            {filteredUsers.length === 0 && (
-              <div className="col-span-full text-center py-12 text-slate-400">
-                <Search size={40} className="mx-auto mb-3 opacity-20" />
-                <p>Aucun membre trouvé.</p>
-              </div>
-            )}
-          </motion.div>
+          </div>
         </div>
       )}
+
+      {/* MODAL DÉTAILS (Même que Admin mais lecture seule) */}
+      <AnimatePresence>
+        {selectedUser && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-8 relative">
+              <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 p-2 text-slate-400"><X size={24}/></button>
+              
+              <div className="flex items-center gap-5 mb-8">
+                <img src={selectedUser.photo_url} className="w-20 h-20 rounded-2xl object-cover shadow-sm" />
+                <div>
+                  <h2 className="text-xl font-bold">{selectedUser.first_name} {selectedUser.last_name}</h2>
+                  <p className="text-emerald-500 font-bold text-xs uppercase italic">Membre ADC Actif</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-3 rounded-2xl"><p className="text-[10px] font-bold text-slate-400 uppercase">Contact</p><p className="text-sm font-bold">{selectedUser.phone}</p></div>
+                    <div className="bg-slate-50 p-3 rounded-2xl"><p className="text-[10px] font-bold text-slate-400 uppercase">Province</p><p className="text-sm font-bold">{selectedUser.province}</p></div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h3 className="text-xs font-bold mb-4 flex items-center gap-2"><MapPin size={14} className="text-emerald-500"/> LOCALISATION</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase">Région</p><p className="text-sm font-semibold">{selectedUser.region}</p></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase">District</p><p className="text-sm font-semibold">{selectedUser.district}</p></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase">Commune</p><p className="text-sm font-semibold">{selectedUser.commune}</p></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase">Fokontany</p><p className="text-sm font-semibold">{selectedUser.fokontany}</p></div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

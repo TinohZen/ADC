@@ -3,191 +3,118 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Mail, Lock, Camera, CheckCircle2, ArrowRight, Eye, EyeOff, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-interface RegisterFormData {
-  first_name: string;
-  last_name: string;
-  phone: string;
-  email: string;
-  password: string;
-  photo_url: string;
-  region: string; // NOUVEAU
-}
-
-interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  icon: React.ReactNode;
-  rightElement?: React.ReactNode;
-}
-
-const InputField: React.FC<InputFieldProps> = ({ label, icon, rightElement, ...props }) => (
-  <div>
-    <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
-    <div className="relative group">
-      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-        {icon}
-      </div>
-      <input
-        {...props}
-        className={`block w-full pl-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none text-sm ${rightElement ? 'pr-10' : 'pr-3'}`}
-      />
-      {rightElement}
-    </div>
-  </div>
-);
+const MADAGASCAR_DATA: any = {
+    "Antananarivo": { "Analamanga": ["Ambohidratrimo", "Andramasina", "Anjozorobe", "Ankazobe", "Antananarivo-Atsimondrano", "Antananarivo-Avaradrano", "Antananarivo-Renivohitra", "Manjakandriana"], "Bongolava": ["Fenoarivobe", "Tsiroanomandidy"], "Itasy": ["Arivonimamo", "Miarinarivo", "Soavinandriana"], "Vakinankaratra": ["Ambatolampy", "Antanifotsy", "Antsirabe I", "Antsirabe II", "Betafo", "Faratsiho", "Mandoto"] },
+    "Antsiranana": { "Diana": ["Ambanja", "Ambilobe", "Antsiranana I", "Antsiranana II", "Nosy Be"], "Sava": ["Andapa", "Antalaha", "Sambava", "Vohemar"] },
+    "Fianarantsoa": { "Amoron'i Mania": ["Ambatofinandrahana", "Ambositra", "Fandriana", "Manandriana"], "Haute Matsiatra": ["Ambalavao", "Ambohimahasoa", "Fianarantsoa I", "Ikalamavony", "Isandra", "Lalangina", "Vohibato"], "Vatovavy": ["Ifanadiana", "Mananjary", "Nosy Varika"], "Fitovinany": ["Ikongo", "Manakara", "Vohipeno"], "Atsimo-Atsinanana": ["Befotaka", "Farafangana", "Midongy Sud", "Vangaindrano", "Vondrozo"], "Ihorombe": ["Iakora", "Ihosy", "Ivohibe"] },
+    "Mahajanga": { "Boeny": ["Ambato-Boeny", "Mahajanga I", "Mahajanga II", "Marovoay", "Mitsinjo"], "Betsiboka": ["Kandreho", "Maevatanana", "Tsaratanana"], "Melaky": ["Ambatomainty", "Antsalova", "Besalampy", "Maintirano", "Morafenobe"], "Sofia": ["Analalava", "Antsohihy", "Bealanana", "Befandriana Nord", "Mampikony", "Mandritsara", "Port-Bergé"] },
+    "Toamasina": { "Alaotra-Mangoro": ["Ambatondrazaka", "Amparafaravola", "Andilamena", "Anosibe An'ala", "Moramanga"], "Atsinanana": ["Antanambao-Manampotsy", "Brickaville", "Mahanoro", "Marolambo", "Toamasina I", "Toamasina II", "Vatomandry"], "Analanjirofo": ["Fenoarivo Atsinanana", "Mananara Avaratra", "Maroantsetra", "Sainte Marie", "Soanierana Ivongo", "Vavatenina"] },
+    "Toliara": { "Menabe": ["Belo sur Tsiribihina", "Mahabo", "Manja", "Morondava"], "Atsimo-Andrefana": ["Ampanihy Ouest", "Ankazoabo", "Betioky Sud", "Morombe", "Sakaraha", "Toliara I", "Toliara II"], "Androy": ["Ambovombe-Androy", "Bekily", "Beloha", "Tsihombe"], "Anosy": ["Amboasary Sud", "Betroka", "Taolagnaro"] }
+};
 
 export default function Register() {
-  const [formData, setFormData] = useState<RegisterFormData>({
-    first_name: '',
-    last_name: '',
-    phone: '',
-    email: '',
-    password: '',
-    photo_url: '',
-    region: 'Antananarivo' // PAR DÉFAUT
+  const [formData, setFormData] = useState({
+    first_name: '', last_name: '', phone: '', email: '', password: '', photo_url: '',
+    province: 'Antananarivo', region: 'Analamanga', district: 'Antananarivo-Renivohitra', commune: '', fokontany: ''
   });
   const [status, setStatus] = useState({ error: '', loading: false, success: false });
-  const [showPassword, setShowPassword] = useState(false);
-  
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleProvinceChange = (e: any) => {
+    const prov = e.target.value;
+    const firstReg = Object.keys(MADAGASCAR_DATA[prov])[0];
+    const firstDist = MADAGASCAR_DATA[prov][firstReg][0];
+    setFormData({...formData, province: prov, region: firstReg, district: firstDist});
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData(prev => ({ ...prev, photo_url: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+  const handleRegionChange = (e: any) => {
+    const reg = e.target.value;
+    const firstDist = MADAGASCAR_DATA[formData.province][reg][0];
+    setFormData({...formData, region: reg, district: firstDist});
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = (e: any) => setFormData({...formData, [e.target.name]: e.target.value});
+
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    setStatus({ error: '', loading: false, success: false });
-
-    if (!formData.photo_url) {
-      setStatus(prev => ({ ...prev, error: 'Veuillez télécharger une photo de profil obligatoire.' }));
-      return;
-    }
-
-    setStatus(prev => ({ ...prev, loading: true }));
-
+    if(!formData.photo_url) return setStatus({...status, error: "Photo obligatoire"});
+    setStatus({...status, loading: true});
     try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur lors de l'inscription");
-      setStatus({ error: '', loading: false, success: true });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Une erreur inattendue est survenue.";
-      setStatus({ error: errorMessage, loading: false, success: false });
-    }
+      const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(formData)});
+      if(res.ok) setStatus({...status, success: true});
+      else throw new Error("Erreur");
+    } catch(err) { setStatus({...status, loading: false, error: "Erreur inscription"}); }
   };
 
-  if (status.success) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-50 via-slate-50 to-slate-100 flex items-center justify-center p-4 font-sans">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md text-center border border-slate-100">
-          <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle2 size={40} />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-3 tracking-tight">Inscription réussie !</h2>
-          <p className="text-slate-500 mb-8 leading-relaxed">Votre demande a été envoyée. Un administrateur doit valider votre compte.</p>
-          <Link to="/login" className="inline-flex w-full justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/20">
-            Retour à la connexion <ArrowRight size={18} />
-          </Link>
-        </motion.div>
+  if (status.success) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-sm">
+        <CheckCircle2 size={60} className="text-emerald-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2 text-slate-800">C'est fait !</h2>
+        <p className="text-slate-500 mb-8">Attendez la validation par un Admin.</p>
+        <Link to="/login" className="block w-full bg-emerald-600 text-white py-3 rounded-xl font-bold">Retour Connexion</Link>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-50 via-slate-50 to-slate-100 flex items-center justify-center p-4 py-12 font-sans">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
-        <div className="text-center mb-8">
-          <img src="/logoADC.png" alt="ADC Logo" className="w-24 h-24 mx-auto mb-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const fallback = document.getElementById('logo-fallback-reg'); if (fallback) fallback.style.display = 'flex'; }} />
-          <div id="logo-fallback-reg" className="hidden w-12 h-12 bg-emerald-600 text-white rounded-xl items-center justify-center font-bold text-xl mx-auto mb-4 shadow-lg shadow-emerald-600/20 rotate-3">ADC</div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Rejoindre l'ADC</h1>
-          <p className="text-slate-500 mt-2 text-sm">Tous les champs sont obligatoires</p>
-        </div>
-
-        {status.error && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 p-3.5 rounded-xl mb-6 text-sm flex items-center gap-2">
-            {status.error}
-          </motion.div>
-        )}
-
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 py-12">
+      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-8">Rejoindre l'ADC</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex justify-center mb-8">
-            <div className={`relative group p-1 rounded-full border-2 ${!formData.photo_url && status.error ? 'border-red-300' : 'border-transparent'}`}>
-              <div className="w-24 h-24 rounded-full bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group-hover:border-emerald-400 transition-colors">
-                {formData.photo_url ? <img src={formData.photo_url} alt="Profile" className="w-full h-full object-cover" /> : <Camera className="h-8 w-8 text-slate-300 group-hover:text-emerald-400 transition-colors" />}
+          <div className="flex justify-center mb-6">
+            <label className="relative cursor-pointer group">
+              <div className="w-24 h-24 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group-hover:border-emerald-500 transition-colors">
+                {formData.photo_url ? <img src={formData.photo_url} className="w-full h-full object-cover" /> : <Camera className="text-slate-300" />}
               </div>
-              <label className="absolute bottom-0 right-0 bg-emerald-600 p-2 rounded-full text-white cursor-pointer hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/30">
-                <Camera size={16} />
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-              </label>
+              <input type="file" className="hidden" accept="image/*" onChange={(e:any) => {
+                const reader = new FileReader();
+                reader.onloadend = () => setFormData({...formData, photo_url: reader.result as string});
+                reader.readAsDataURL(e.target.files[0]);
+              }} />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input type="text" name="first_name" placeholder="Prénom" onChange={handleChange} className="p-3 bg-slate-50 border rounded-xl w-full" required />
+            <input type="text" name="last_name" placeholder="Nom" onChange={handleChange} className="p-3 bg-slate-50 border rounded-xl w-full" required />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Province</label>
+              <select name="province" value={formData.province} onChange={handleProvinceChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
+                {Object.keys(MADAGASCAR_DATA).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <InputField label="Prénom" name="first_name" type="text" value={formData.first_name} onChange={handleChange} icon={<User className="h-4 w-4" />} required />
-            <InputField label="Nom" name="last_name" type="text" value={formData.last_name} onChange={handleChange} icon={<User className="h-4 w-4" />} required />
-          </div>
-
-          <InputField label="Téléphone" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="03........" icon={<Phone className="h-4 w-4" />} required />
-          <InputField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="email@exemple.com" icon={<Mail className="h-4 w-4" />} required />
-          
-          {/* SÉLECTEUR DE RÉGION */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Région</label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <select
-                name="region"
-                value={formData.region}
-                onChange={handleChange}
-                className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none text-sm"
-                required
-              >
-                <option value="Antananarivo">Antananarivo</option>
-                <option value="Fianarantsoa">Fianarantsoa</option>
-                <option value="Toamasina">Toamasina (Tamatave)</option>
-                <option value="Mahajanga">Mahajanga (Majunga)</option>
-                <option value="Toliara">Toliara (Tuléar)</option>
-                <option value="Antsiranana">Antsiranana (Diego-Suarez)</option>
-                <option value="Autre">Autre région</option>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Région</label>
+              <select name="region" value={formData.region} onChange={handleRegionChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
+                {Object.keys(MADAGASCAR_DATA[formData.province]).map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
           </div>
 
-          <InputField 
-            label="Mot de passe" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="••••••••" icon={<Lock className="h-4 w-4" />} required 
-            rightElement={
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            }
-          />
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">District</label>
+            <select name="district" value={formData.district} onChange={handleChange} className="w-full p-3 bg-slate-50 border rounded-xl text-sm">
+              {MADAGASCAR_DATA[formData.province][formData.region].map((d:string) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
 
-          <button type="submit" disabled={status.loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/20 disabled:opacity-70 mt-6">
-            {status.loading ? 'Inscription en cours...' : "S'inscrire maintenant"}
+          <div className="grid grid-cols-2 gap-3">
+            <input type="text" name="commune" placeholder="Commune" onChange={handleChange} className="p-3 bg-slate-50 border rounded-xl w-full" required />
+            <input type="text" name="fokontany" placeholder="Fokontany" onChange={handleChange} className="p-3 bg-slate-50 border rounded-xl w-full" required />
+          </div>
+
+          <input type="tel" name="phone" placeholder="Téléphone" onChange={handleChange} className="w-full p-3 bg-slate-50 border rounded-xl" required />
+          <input type="password" name="password" placeholder="Mot de passe" onChange={handleChange} className="w-full p-3 bg-slate-50 border rounded-xl" required />
+
+          <button type="submit" disabled={status.loading} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg">
+            {status.loading ? 'Patientez...' : "S'inscrire"}
           </button>
         </form>
-
-        <div className="mt-8 text-center text-sm text-slate-500">
-          Déjà membre ? <Link to="/login" className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline transition-colors">Se connecter</Link>
-        </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
