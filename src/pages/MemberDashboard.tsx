@@ -139,6 +139,8 @@ export default function MemberDashboard() {
   );
 }
 
+
+
 function StatCard({ icon, label, val, color }: any) {
     return (
         <div className="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6 hover:shadow-2xl transition-all">

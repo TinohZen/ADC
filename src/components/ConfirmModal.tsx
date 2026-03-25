@@ -27,6 +27,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmText = "OK
           </motion.div>
         </div>
       )}
+      
     </AnimatePresence>
   );
 }

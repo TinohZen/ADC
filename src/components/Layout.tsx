@@ -32,6 +32,7 @@ export default function Layout() {
       <main className="flex-1 max-w-7xl mx-auto p-4 sm:p-8 w-full">
         <Outlet />
       </main>
+      
 
       <ConfirmModal isOpen={isLogoutModalOpen} title="Déconnexion" message="Voulez-vous quitter votre session ?" confirmText="Quitter" type="danger" onConfirm={() => { localStorage.clear(); navigate('/login'); }} onCancel={() => setIsLogoutModalOpen(false)} />
     </div>
