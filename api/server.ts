@@ -28,14 +28,13 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
-// Vérifie si l'utilisateur est connecté (Token JWT valide)
 const authenticateToken = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Format: "Bearer TOKEN"
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token)
     return res.status(401).json({ error: "Accès refusé. Token manquant." });
@@ -45,16 +44,13 @@ const authenticateToken = (
     process.env.JWT_SECRET || "fallback_secret",
     (err, user) => {
       if (err)
-        return res.status(403).json({
-          error: "Token invalide ou expiré. Veuillez vous reconnecter.",
-        });
+        return res.status(403).json({ error: "Token invalide ou expiré." });
       req.user = user;
       next();
     }
   );
 };
 
-// Vérifie si l'utilisateur est un Admin
 const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user?.role !== "admin") {
     return res
@@ -64,12 +60,10 @@ const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   next();
 };
 
-// --- FONCTION UTILITAIRE : UPLOAD IMAGE SUPABASE ---
 async function uploadPhoto(
   base64Str: string,
   userId: string | number
 ): Promise<string> {
-  // Si ce n'est pas du base64 (ex: c'est déjà une URL existante), on retourne tel quel
   if (!base64Str.startsWith("data:image")) return base64Str;
 
   const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -79,48 +73,41 @@ async function uploadPhoto(
   const contentType = matches[1];
   const buffer = Buffer.from(matches[2], "base64");
   const ext = contentType.split("/")[1];
-  const fileName = `user_${userId}_${Date.now()}.${ext}`; // Ex: user_1_16789.png
+  const fileName = `user_${userId}_${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from("avatars")
     .upload(fileName, buffer, { contentType, upsert: true });
-
   if (error) throw error;
 
-  // Récupérer l'URL publique de l'image
   const { data: publicUrlData } = supabase.storage
     .from("avatars")
     .getPublicUrl(fileName);
   return publicUrlData.publicUrl;
 }
 
-// ==========================================
-// --- ROUTES PUBLIQUES (Pas besoin de token)
-// ==========================================
+// --- ROUTES PUBLIQUES ---
 
 app.post("/api/register", async (req, res) => {
-  const { first_name, last_name, phone, email, photo_url, password } = req.body;
+  // AJOUT DE LA REGION ICI
+  const { first_name, last_name, phone, email, photo_url, password, region } =
+    req.body;
   try {
     const existing = await pool.query("SELECT * FROM users WHERE phone = $1", [
       phone,
     ]);
-    if (existing.rows.length > 0) {
-      return res
-        .status(400)
-        .json({ error: "Ce numéro de téléphone est déjà utilisé" });
-    }
+    if (existing.rows.length > 0)
+      return res.status(400).json({ error: "Ce numéro est déjà utilisé" });
 
-    // 1. CRYPTAGE DU MOT DE PASSE
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 2. Création de l'utilisateur (sans la photo pour l'instant pour obtenir son ID)
+    // AJOUT DE LA REGION ($6) DANS L'INSERTION
     const result = await pool.query(
-      "INSERT INTO users (first_name, last_name, phone, email, password, status, role) VALUES ($1, $2, $3, $4, $5, 'pending', 'member') RETURNING *",
-      [first_name, last_name, phone, email, hashedPassword]
+      "INSERT INTO users (first_name, last_name, phone, email, password, status, role, region) VALUES ($1, $2, $3, $4, $5, 'pending', 'member', $6) RETURNING *",
+      [first_name, last_name, phone, email, hashedPassword, region]
     );
     let user = result.rows[0];
 
-    // 3. Upload de la photo sur Supabase Storage avec l'ID du user
     if (photo_url && photo_url.startsWith("data:image")) {
       const publicUrl = await uploadPhoto(photo_url, user.id);
       const updateRes = await pool.query(
@@ -130,7 +117,7 @@ app.post("/api/register", async (req, res) => {
       user = updateRes.rows[0];
     }
 
-    delete user.password; // On ne renvoie pas le mot de passe crypté
+    delete user.password;
     res.json({ user });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -149,16 +136,11 @@ app.post("/api/login", async (req, res) => {
     const user = result.rows[0];
     let validPassword = false;
 
-    // --- MIGRATION DOUCE DES MOTS DE PASSE ---
-    // Les mots de passe bcrypt commencent toujours par "$2b$" ou "$2a$"
     if (user.password.startsWith("$2b$") || user.password.startsWith("$2a$")) {
-      // Cas 1 : Utilisateur récent (mot de passe déjà crypté)
       validPassword = await bcrypt.compare(password, user.password);
     } else {
-      // Cas 2 : Ancien utilisateur (mot de passe en clair)
       if (password === user.password) {
         validPassword = true;
-        // On profite de sa connexion pour sécuriser son compte !
         const hashedNewPassword = await bcrypt.hash(password, 10);
         await pool.query("UPDATE users SET password = $1 WHERE id = $2", [
           hashedNewPassword,
@@ -169,19 +151,17 @@ app.post("/api/login", async (req, res) => {
 
     if (!validPassword)
       return res.status(401).json({ error: "Identifiants incorrects" });
-
     if (user.status === "pending")
       return res
         .status(403)
-        .json({ error: "Votre compte est en attente de validation." });
+        .json({ error: "Compte en attente de validation." });
     if (user.status === "rejected")
-      return res.status(403).json({ error: "Votre compte a été refusé." });
+      return res.status(403).json({ error: "Compte refusé." });
 
-    // CRÉATION DU TOKEN JWT
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      process.env.JWT_SECRET || "fallback_secret",
-      { expiresIn: "7d" } // Expiration dans 7 jours
+      process.env.JWT_SECRET || "fallback",
+      { expiresIn: "7d" }
     );
 
     delete user.password;
@@ -191,15 +171,13 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ==========================================
-// --- ROUTES PROTÉGÉES (Connecté requis)
-// ==========================================
-// Note: On ajoute 'authenticateToken' comme 2ème paramètre partout
+// --- ROUTES PROTÉGÉES ---
 
 app.get("/api/users", authenticateToken, async (req, res) => {
   try {
+    // AJOUT DE LA REGION AU SELECT
     const users = await pool.query(
-      "SELECT id, first_name, last_name, phone, email, photo_url, status, role, created_at FROM users ORDER BY created_at DESC"
+      "SELECT id, first_name, last_name, phone, email, photo_url, status, role, region, created_at FROM users ORDER BY created_at DESC"
     );
     res.json(users.rows);
   } catch (err: any) {
@@ -212,23 +190,22 @@ app.put(
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
-    const { first_name, last_name, phone, email, photo_url } = req.body;
+    // AJOUT DE LA REGION
+    const { first_name, last_name, phone, email, photo_url, region } = req.body;
 
-    // Sécurité: Seul l'admin ou le propriétaire du compte peut modifier
-    if (req.user.role !== "admin" && req.user.id !== parseInt(id)) {
+    if (req.user.role !== "admin" && req.user.id !== parseInt(id))
       return res.status(403).json({ error: "Non autorisé" });
-    }
 
     try {
       let finalPhotoUrl = photo_url;
-      // Si l'utilisateur a changé de photo (base64 détecté), on upload sur Supabase
       if (photo_url && photo_url.startsWith("data:image")) {
         finalPhotoUrl = await uploadPhoto(photo_url, id);
       }
 
+      // AJOUT DE LA REGION ($6) DANS L'UPDATE
       await pool.query(
-        "UPDATE users SET first_name = $1, last_name = $2, phone = $3, email = $4, photo_url = $5 WHERE id = $6",
-        [first_name, last_name, phone, email, finalPhotoUrl, id]
+        "UPDATE users SET first_name = $1, last_name = $2, phone = $3, email = $4, photo_url = $5, region = $6 WHERE id = $7",
+        [first_name, last_name, phone, email, finalPhotoUrl, region, id]
       );
       res.json({ success: true, photo_url: finalPhotoUrl });
     } catch (err: any) {
@@ -243,10 +220,8 @@ app.put(
   async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
-
-    if (req.user.role !== "admin" && req.user.id !== parseInt(id)) {
+    if (req.user.role !== "admin" && req.user.id !== parseInt(id))
       return res.status(403).json({ error: "Non autorisé" });
-    }
 
     try {
       const userRes = await pool.query(
@@ -256,7 +231,6 @@ app.put(
       if (userRes.rows.length === 0)
         return res.status(404).json({ error: "Utilisateur non trouvé" });
 
-      // Vérifier l'ancien mot de passe
       const validPassword = await bcrypt.compare(
         currentPassword,
         userRes.rows[0].password
@@ -264,13 +238,11 @@ app.put(
       if (!validPassword)
         return res.status(400).json({ error: "Mot de passe actuel incorrect" });
 
-      // Hasher le nouveau mot de passe
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
       await pool.query("UPDATE users SET password = $1 WHERE id = $2", [
         hashedNewPassword,
         id,
       ]);
-
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -292,13 +264,9 @@ app.get("/api/meetings", authenticateToken, async (req, res) => {
 app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    // 💡 NOUVELLE REQUÊTE DYNAMIQUE :
-    // On prend TOUS les membres approuvés, et on fait un lien (LEFT JOIN) avec la table des présences.
-    // Si la présence n'existe pas encore (nouveau membre), on affiche 'absent' par défaut avec COALESCE.
+    // REQUÊTE DYNAMIQUE POUR AFFICHER TOUS LES MEMBRES APPROUVÉS !
     const attendance = await pool.query(
-      `SELECT 
-         u.id as user_id, u.first_name, u.last_name, u.phone, u.photo_url, 
-         COALESCE(a.status, 'absent') as status 
+      `SELECT u.id as user_id, u.first_name, u.last_name, u.phone, u.photo_url, u.region, COALESCE(a.status, 'absent') as status 
        FROM users u 
        LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
        WHERE u.status = 'approved' AND u.role = 'member'
@@ -318,11 +286,9 @@ app.get("/api/meetings/:id/report", authenticateToken, async (req, res) => {
       "SELECT report FROM meetings WHERE id = $1",
       [id]
     );
-    if (result.rows.length > 0) {
-      res.json({ report: result.rows[0].report || "" });
-    } else {
-      res.status(404).json({ error: "Réunion non trouvée" });
-    }
+    res.json({
+      report: result.rows.length > 0 ? result.rows[0].report || "" : "",
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -343,37 +309,31 @@ app.get("/api/stats", authenticateToken, async (req, res) => {
     const meetingsResult = await pool.query("SELECT COUNT(*) FROM meetings");
     const totalMeetings = parseInt(meetingsResult.rows[0].count);
 
-    const attendanceResult = await pool.query(`
-      SELECT 
-        COUNT(*) as total_records,
-        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as total_present
-      FROM attendance
-    `);
+    const attendanceResult = await pool.query(
+      `SELECT COUNT(*) as total_records, SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as total_present FROM attendance`
+    );
     const totalRecords = parseInt(attendanceResult.rows[0].total_records);
     const totalPresent = parseInt(
       attendanceResult.rows[0].total_present || "0"
     );
 
-    // CORRECTION : On renomme la variable pour qu'elle corresponde au Front-end !
+    // CORRECTION DU NOM DE LA VARIABLE POUR LE POURCENTAGE !
     let averageAttendance = 0;
-    if (totalRecords > 0) {
+    if (totalRecords > 0)
       averageAttendance = Math.round((totalPresent / totalRecords) * 100);
-    }
 
     res.json({
       totalMembers,
       pendingMembers,
       totalMeetings,
-      averageAttendance, // C'était attendancePercentage avant !
+      averageAttendance,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ==========================================
-// --- ROUTES ADMINS (Token + Admin requis)
-// ==========================================
+// --- ROUTES ADMINS ---
 
 app.put(
   "/api/users/:id/status",
@@ -427,10 +387,7 @@ app.put(
     const { user_id, status } = req.body;
     try {
       await pool.query(
-        `INSERT INTO attendance (meeting_id, user_id, status) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (meeting_id, user_id) 
-       DO UPDATE SET status = EXCLUDED.status`,
+        `INSERT INTO attendance (meeting_id, user_id, status) VALUES ($1, $2, $3) ON CONFLICT (meeting_id, user_id) DO UPDATE SET status = EXCLUDED.status`,
         [id, user_id, status]
       );
       res.json({ success: true });
