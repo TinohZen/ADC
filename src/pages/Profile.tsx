@@ -86,10 +86,10 @@ export default function Profile() {
             <div className="bg-slate-50 p-8 rounded-[2.5rem] space-y-6">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><MapPin size={14} className="text-emerald-500"/> Localisation Madagascar</p>
               <div className="grid md:grid-cols-3 gap-4">
-                <ProfileSel label="Province" val={formData.province} opts={Object.keys(MADAGASCAR_DATA)} set={(v:any)=>{ const r = Object.keys(MADAGASCAR_DATA[v])[0]; setFormData({...formData, province:v, region:r, district:MADAGASCAR_DATA[v][r][0]})}} />
-                <ProfileSel label="Région" val={formData.region} opts={Object.keys(MADAGASCAR_DATA[formData.province]||{})} set={(v:any)=>setFormData({...formData, region:v, district:MADAGASCAR_DATA[formData.province][v][0]})} />
-                <ProfileSel label="District" val={formData.district} opts={MADAGASCAR_DATA[formData.province][formData.region]||[]} set={(v:any)=>setFormData({...formData, district:v})} />
-              </div>
+    <ProfileSel label="Province" val={formData.province} opts={Object.keys(MADAGASCAR_DATA)} set={(v:any)=>{ const r = Object.keys(MADAGASCAR_DATA[v])[0]; setFormData({...formData, province:v, region:r, district:MADAGASCAR_DATA[v][r][0]})}} />
+    <ProfileSel label="Région" val={formData.region} opts={Object.keys(MADAGASCAR_DATA[formData.province]||{})} set={(v:any)=>setFormData({...formData, region:v, district:MADAGASCAR_DATA[formData.province][v][0]})} />
+    <ProfileSel label="District" val={formData.district} opts={MADAGASCAR_DATA[formData.province]?.[formData.region] || []} set={(v:any)=>setFormData({...formData, district:v})} />
+</div>
               <div className="grid md:grid-cols-2 gap-4">
                 <ProfileInp label="Commune" val={formData.commune} set={(v:any)=>setFormData({...formData, commune:v})} />
                 <ProfileInp label="Fokontany" val={formData.fokontany} set={(v:any)=>setFormData({...formData, fokontany:v})} />
