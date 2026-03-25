@@ -1,81 +1,65 @@
-import { Outlet, useNavigate, Navigate } from 'react-router-dom'; // Ajoute Navigate ici
-import { LogOut, User } from 'lucide-react';
-import { motion } from 'framer-motion'; // Vérifie si c'est motion/react ou framer-motion selon ta version
+import { useState } from 'react';
+import { Outlet, useNavigate, Navigate } from 'react-router-dom';
+import { LogOut, User, Menu } from 'lucide-react';
+import { motion } from 'framer-motion';
+import ConfirmModal from './ConfirmModal';
 
 export default function Layout() {
   const navigate = useNavigate();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const userStr = localStorage.getItem('adc_user');
   
-  // ✅ CORRECTION : Utilise le composant de redirection au lieu de la fonction navigate()
-  if (!userStr) {
-    return <Navigate to="/login" replace />;
-  }
-  
+  if (!userStr) return <Navigate to="/login" replace />;
   const user = JSON.parse(userStr);
 
   const handleLogout = () => {
     localStorage.removeItem('adc_user');
-    localStorage.removeItem('adc_token'); // 👉 NOUVEAU : On supprime le token
+    localStorage.removeItem('adc_token');
     navigate('/login');
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 text-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 h-16 flex items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-          <img 
-              src="/logoADC.png" 
-              alt="ADC Logo" 
-              className="w-10 h-10 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const fallback = document.getElementById('logo-fallback-layout');
-                if (fallback) fallback.style.display = 'flex';
-              }}
-            />
-            <div id="logo-fallback-layout" className="hidden w-10 h-10 bg-emerald-600 text-white rounded-xl items-center justify-center font-bold text-lg shadow-sm group-hover:bg-emerald-700 transition-colors">
-              ADC
-            </div>
-            
-            <h1 className="font-semibold text-lg hidden sm:block tracking-tight">Association  Dévoir et Citoyen</h1>
-            <h1 className="font-semibold text-lg sm:hidden tracking-tight">ADC</h1>
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-emerald-200 group-hover:rotate-6 transition-transform">ADC</div>
+            <h1 className="font-extrabold text-slate-800 hidden sm:block tracking-tight text-sm">Association Dévoir et Citoyen</h1>
           </div>
           
-          <div className="flex items-center gap-4">
-          <div 
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-3 bg-slate-100/80 px-3 py-1.5 rounded-full border border-slate-200/60 cursor-pointer hover:bg-slate-200 transition-colors"
+          <div className="flex items-center gap-2 sm:gap-4">
+            <motion.div 
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/profile')} 
+              className="flex items-center gap-2 bg-white border border-slate-200 p-1.5 pr-4 rounded-full cursor-pointer hover:border-emerald-300 transition-all shadow-sm"
             >
-            {user.photo_url ? (
-                <img src={user.photo_url} alt="Profile" className="w-7 h-7 rounded-full object-cover shadow-sm" />
-              ) : (
-                <div className="w-7 h-7 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center">
-                  <User size={14} />
-                </div>
-              )}
-              <span className="text-sm font-medium hidden sm:block pr-1">{user.first_name} {user.last_name}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-              title="Déconnexion"
+              <img src={user.photo_url || '/placeholder.png'} className="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-50" />
+              <span className="text-[11px] font-bold text-slate-700 hidden sm:block uppercase tracking-wider">{user.first_name}</span>
+            </motion.div>
+            
+            <button 
+              onClick={() => setIsLogoutModalOpen(true)} 
+              className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
             >
               <LogOut size={20} />
             </button>
           </div>
-        </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+      <main className="flex-1 max-w-7xl mx-auto p-4 sm:p-8 w-full">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <Outlet />
         </motion.div>
       </main>
+
+      <ConfirmModal 
+        isOpen={isLogoutModalOpen}
+        title="Déconnexion"
+        message="Voulez-vous vraiment quitter votre espace ADC ?"
+        confirmText="Déconnexion"
+        type="danger"
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+      />
     </div>
   );
 }

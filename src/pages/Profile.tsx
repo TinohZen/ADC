@@ -147,9 +147,10 @@ export default function Profile() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition-all">
-                <Save size={18}/> {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
-              </button>
+              <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-5 rounded-[1.5rem] font-bold shadow-xl shadow-emerald-100 flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50">
+  {loading ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={20}/></motion.div> : <Save size={20}/>}
+  {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+</button>
             </form>
           </div>
         </div>
@@ -175,9 +176,10 @@ export default function Profile() {
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Confirmer</label>
                 <input type="password" value={passwords.confirmPassword} onChange={(e) => setPasswords({...passwords, confirmPassword: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-500/10" required />
               </div>
-              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white p-4 rounded-2xl font-bold shadow-lg transition-all mt-4">
-                Changer le mot de passe
-              </button>
+              <button disabled={passLoading} className="w-full bg-white text-slate-900 p-4 rounded-2xl font-extrabold shadow-lg hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50">
+  {passLoading && <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={16}/></motion.div>}
+  {passLoading ? 'Traitement...' : 'Changer le mot de passe'}
+</button>
             </form>
           </div>
 

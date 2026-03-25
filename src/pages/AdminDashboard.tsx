@@ -4,22 +4,26 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { 
   Users, Calendar, Check, X, Plus, Trash2, Search, 
-  TrendingUp, UserPlus, User, MapPin, Mail, Phone, Clock
+  TrendingUp, UserPlus, User, MapPin, Mail, Phone, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');
   const [users, setUsers] = useState<any[]>([]);
-  const[meetings, setMeetings] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
   const [loading, setLoading] = useState(true);
-  const[searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
+  // MODALS & STATES
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: 0, type: 'delete' as 'delete' | 'meeting', title: '', msg: '' });
+  const [actionLoading, setActionLoading] = useState(false);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
-  const[newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
+  const [newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
 
   useEffect(() => { fetchData(); }, [activeTab]);
 
@@ -39,7 +43,7 @@ export default function AdminDashboard() {
     finally { setLoading(false); }
   };
 
-  const handleUpdateStatus = async (id: number, status: string, e: React.MouseEvent) => {
+  const handleUpdateStatus = async (id: number, status: string, e: any) => {
     e.stopPropagation();
     try {
       await apiFetch(`/api/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
@@ -47,290 +51,232 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   };
 
-  const handleDeleteUser = async (id: number, e: React.MouseEvent) => {
+  const handleDeleteClick = (id: number, type: 'delete' | 'meeting', e: any) => {
     e.stopPropagation();
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce membre ?')) return;
-    try {
-      await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
-      fetchData();
-    } catch (err) { console.error(err); }
+    setConfirmModal({
+      isOpen: true, id, type,
+      title: type === 'delete' ? 'Supprimer ce membre' : 'Supprimer la réunion',
+      msg: type === 'delete' ? 'Cette action est irréversible.' : 'Toutes les données de présence seront perdues.'
+    });
   };
 
-  const handleCreateMeeting = async (e: React.FormEvent) => {
+  const executeDelete = async () => {
+    setActionLoading(true);
+    try {
+      const url = confirmModal.type === 'delete' ? `/api/users/${confirmModal.id}` : `/api/meetings/${confirmModal.id}`;
+      await apiFetch(url, { method: 'DELETE' });
+      setConfirmModal({ ...confirmModal, isOpen: false });
+      fetchData();
+    } finally { setActionLoading(false); }
+  };
+
+  const handleCreateMeeting = async (e: any) => {
     e.preventDefault();
+    setActionLoading(true);
     try {
       await apiFetch('/api/meetings', { method: 'POST', body: JSON.stringify(newMeeting) });
       setShowNewMeeting(false);
       setNewMeeting({ title: '', description: '', date: '', time: '' });
       fetchData();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleDeleteMeeting = async (id: number) => {
-    if (!confirm('Supprimer cette réunion ?')) return;
-    try {
-      await apiFetch(`/api/meetings/${id}`, { method: 'DELETE' });
-      fetchData();
-    } catch (err) { console.error(err); }
-  };
-
-  const getMeetingStatus = (date: string, time: string) => {
-    const meetingDate = parseISO(`${date}T${time}`);
-    const now = new Date();
-    const diff = now.getTime() - meetingDate.getTime();
-    const twoHours = 2 * 60 * 60 * 1000;
-    if (diff > 0 && diff < twoHours) return { label: 'En cours', color: 'bg-emerald-500' };
-    if (diff > twoHours) return { label: 'Passée', color: 'bg-slate-400' };
-    return { label: 'À venir', color: 'bg-blue-500' };
+    } finally { setActionLoading(false); }
   };
 
   const filteredUsers = users.filter(u => {
     const s = searchTerm.toLowerCase();
     return u.first_name.toLowerCase().includes(s) || u.last_name.toLowerCase().includes(s) || 
-           u.phone.includes(s) || u.district?.toLowerCase().includes(s) || u.region?.toLowerCase().includes(s);
+           u.district?.toLowerCase().includes(s) || u.region?.toLowerCase().includes(s);
   });
 
   return (
     <div className="space-y-8">
-      {/* HEADER AMÉLIORÉ AVEC BOUTON PROFIL */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Tableau de bord</h2>
-          <p className="text-slate-500 text-sm mt-1">Gérez les membres et les réunions</p>
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="text-center sm:text-left">
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">ADC Admin</h2>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1 italic">Gestion Madagascar</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-200/50 rounded-xl border border-slate-200/50 w-full sm:w-auto">
-          <button onClick={() => setActiveTab('members')} className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${activeTab === 'members' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
-            <Users size={18} /> <span className="hidden sm:inline">Membres</span>
-          </button>
-          <button onClick={() => setActiveTab('meetings')} className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${activeTab === 'meetings' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
-            <Calendar size={18} /> <span className="hidden sm:inline">Réunions</span>
-          </button>
-          <Link to="/profile" className="flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
-            <User size={18} /> <span className="hidden sm:inline">Profil</span>
-          </Link>
+        <div className="flex bg-slate-200/50 p-1.5 rounded-[1.2rem] border border-slate-200/50 w-full sm:w-auto">
+          <button onClick={() => setActiveTab('members')} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'members' ? 'bg-white text-emerald-600 shadow-xl' : 'text-slate-500'}`}>MEMBRES</button>
+          <button onClick={() => setActiveTab('meetings')} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'meetings' ? 'bg-white text-emerald-600 shadow-xl' : 'text-slate-500'}`}>RÉUNIONS</button>
         </div>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* STATS CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard label="Membres" val={stats.totalMembers} icon={<Users/>} color="emerald" />
-        <StatCard label="En attente" val={stats.pendingMembers} icon={<UserPlus/>} color="amber" />
+        <StatCard label="Attente" val={stats.pendingMembers} icon={<UserPlus/>} color="amber" />
         <StatCard label="Réunions" val={stats.totalMeetings} icon={<Calendar/>} color="blue" />
-        <StatCard label="% Présence" val={`${stats.averageAttendance}%`} icon={<TrendingUp/>} color="purple" />
+        <StatCard label="Présence" val={`${stats.averageAttendance}%`} icon={<TrendingUp/>} color="purple" />
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-slate-400">
-          <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-3"></div>
-          Chargement des données...
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full" />
+          <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Synchronisation...</p>
         </div>
       ) : activeTab === 'members' ? (
-        <div className="space-y-4">
-          {/* RECHERCHE */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Rechercher par nom, téléphone, région ou district..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none shadow-sm focus:ring-2 focus:ring-emerald-500/20 transition-all" />
+        <div className="space-y-6">
+          <div className="relative group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={20} />
+            <input type="text" placeholder="Rechercher par nom, district, région..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
+            className="w-full pl-14 pr-6 py-4 bg-white border-2 border-slate-100 rounded-[1.5rem] outline-none shadow-sm focus:border-emerald-500 transition-all font-medium text-slate-700 placeholder:text-slate-300" />
           </div>
 
-          {/* TABLEAU DES MEMBRES */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                    <th className="p-4 pl-6">Membre</th>
-                    <th className="p-4">Localisation</th>
-                    <th className="p-4">Statut</th>
-                    <th className="p-4 pr-6 text-right">Actions</th>
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-100">
+                  <tr>
+                    <th className="p-5 pl-8 text-[10px] font-black uppercase text-slate-400 tracking-widest">Membre</th>
+                    <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest">Localisation</th>
+                    <th className="p-5 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <AnimatePresence>
-                    {filteredUsers.map((u) => (
-                      <motion.tr key={u.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUser(u)} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
-                        <td className="p-4 pl-6">
-                          <div className="flex items-center gap-3">
-                            {u.photo_url ? (
-                              <img src={u.photo_url} className="w-10 h-10 rounded-full object-cover shadow-sm border border-slate-200" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">{u.first_name[0]}{u.last_name[0]}</div>
-                            )}
-                            <div>
-                              <div className="font-semibold text-slate-800">{u.first_name} {u.last_name}</div>
-                              <div className="text-xs text-slate-500">{u.phone}</div>
-                            </div>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredUsers.map((u) => (
+                    <tr key={u.id} onClick={() => setSelectedUser(u)} className="hover:bg-slate-50/80 cursor-pointer group transition-all">
+                      <td className="p-5 pl-8">
+                        <div className="flex items-center gap-4">
+                          <img src={u.photo_url} className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md group-hover:scale-110 transition-transform" />
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm">{u.first_name} {u.last_name}</div>
+                            <div className={`text-[10px] font-black uppercase mt-1 ${u.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}`}>{u.status}</div>
                           </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-sm font-medium text-slate-700">{u.district || u.region || 'Non renseigné'}</div>
-                          {u.province && (
-                            <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
-                              {u.region && u.district ? `${u.region} • ` : ''}{u.province}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                            {u.status === 'approved' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/50">Approuvé</span>
-                            ) : u.status === 'pending' ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/50">En attente</span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200/50">Refusé</span>
-                            )}
-                        </td>
-                        <td className="p-4 pr-6 text-right">
-                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {u.status === 'pending' && (
-                              <>
-                                <button onClick={(e) => handleUpdateStatus(u.id, 'approved', e)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Check size={18}/></button>
-                                <button onClick={(e) => handleUpdateStatus(u.id, 'rejected', e)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><X size={18}/></button>
-                              </>
-                            )}
-                            <button onClick={(e) => handleDeleteUser(u.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"><Trash2 size={18}/></button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
-                  {filteredUsers.length === 0 && (
-                    <tr><td colSpan={4} className="p-12 text-center text-slate-500"><Search size={40} className="text-slate-300 mx-auto mb-3" /><p>Aucun membre trouvé.</p></td></tr>
-                  )}
+                        </div>
+                      </td>
+                      <td className="p-5">
+                        <div className="text-xs font-bold text-slate-700">{u.district || 'Non défini'}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic">{u.region} • {u.province}</div>
+                      </td>
+                      <td className="p-5 pr-8">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {u.status === 'pending' && <button onClick={(e) => handleUpdateStatus(u.id, 'approved', e)} className="p-2.5 text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"><Check size={18}/></button>}
+                          <button onClick={(e) => handleDeleteClick(u.id, 'delete', e)} className="p-2.5 text-red-500 bg-red-50 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
         </div>
       ) : (
-        /* SECTION RÉUNIONS (Design original) */
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+        /* RÉUNIONS */
+        <div className="space-y-6">
           <div className="flex justify-end">
-            <button onClick={() => setShowNewMeeting(!showNewMeeting)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-sm shadow-emerald-600/20">
-              <Plus size={18} /> Nouvelle réunion
+            <button onClick={() => setShowNewMeeting(true)} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-200 hover:bg-emerald-700 flex items-center gap-2 transition-all active:scale-95">
+                <Plus size={18}/> NOUVELLE RÉUNION
             </button>
           </div>
-
-          <AnimatePresence>
-            {showNewMeeting && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 mb-6">
-                  <h3 className="text-lg font-bold text-slate-800 mb-5">Planifier une réunion</h3>
-                  <form onSubmit={handleCreateMeeting} className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Titre</label>
-                      <input type="text" value={newMeeting.title} onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none" required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
-                      <textarea value={newMeeting.description} onChange={(e) => setNewMeeting({ ...newMeeting, description: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none resize-none" rows={3} />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label><input type="date" value={newMeeting.date} onChange={(e) => setNewMeeting({ ...newMeeting, date: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none" required /></div>
-                      <div><label className="block text-sm font-medium text-slate-700 mb-1.5">Heure</label><input type="time" value={newMeeting.time} onChange={(e) => setNewMeeting({ ...newMeeting, time: e.target.value })} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none" required /></div>
-                    </div>
-                    <div className="flex justify-end gap-3 pt-4">
-                      <button type="button" onClick={() => setShowNewMeeting(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors">Annuler</button>
-                      <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-all shadow-sm shadow-emerald-600/20">Enregistrer</button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {meetings.map((meeting) => {
-              const status = getMeetingStatus(meeting.date, meeting.time);
-              return (
-                <motion.div key={meeting.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col group hover:shadow-md transition-all hover:border-emerald-200">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-slate-800 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{meeting.title}</h3>
-                      <span className={`inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase text-white mt-1 ${status.color}`}>{status.label}</span>
-                    </div>
-                    <button onClick={() => handleDeleteMeeting(meeting.id)} className="text-slate-300 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 -mr-2 -mt-2 opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
-                  </div>
-                  <p className="text-slate-500 text-sm mb-5 flex-1 line-clamp-3 leading-relaxed">{meeting.description || 'Aucune description.'}</p>
-                  <div className="flex flex-col gap-2.5 mb-6 pt-4 border-t border-slate-100">
-                    <div className="flex items-center gap-2.5 text-sm text-slate-600 font-medium"><div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600"><Calendar size={14} /></div><span>{format(new Date(meeting.date), 'dd MMMM yyyy', { locale: fr })}</span></div>
-                    <div className="flex items-center gap-2.5 text-sm text-slate-600 font-medium"><div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600"><Clock size={14} /></div><span>{meeting.time}</span></div>
-                  </div>
-                  <Link to={`/meetings/${meeting.id}`} className="w-full py-2.5 bg-slate-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-xl font-semibold text-center transition-colors text-sm border border-slate-100">Gérer les présences</Link>
-                </motion.div>
-              );
-            })}
+             {meetings.map((m) => (
+               <div key={m.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-100 transition-all group relative">
+                 <button onClick={() => handleDeleteClick(m.id, 'meeting', {stopPropagation:()=>{}})} className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16}/></button>
+                 <h3 className="font-black text-slate-800 text-lg mb-4 line-clamp-1">{m.title}</h3>
+                 <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 mb-6 uppercase tracking-widest">
+                    <div className="flex items-center gap-1.5"><Calendar size={14} className="text-emerald-500"/> {format(new Date(m.date), 'dd/MM/yy')}</div>
+                    <div className="flex items-center gap-1.5"><Clock size={14} className="text-emerald-500"/> {m.time}</div>
+                 </div>
+                 <Link to={`/meetings/${m.id}`} className="block w-full text-center py-3 bg-slate-50 text-emerald-600 rounded-xl font-black text-xs hover:bg-emerald-600 hover:text-white transition-all">GÉRER LES PRÉSENCES</Link>
+               </div>
+             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
-      {/* MODAL DÉTAILS DU MEMBRE (MAGNIFIQUE) */}
+      {/* MODAL NOUVELLE REUNION */}
+      <AnimatePresence>
+        {showNewMeeting && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl">
+                    <h3 className="text-2xl font-black text-slate-800 mb-6 text-center">Planifier</h3>
+                    <form onSubmit={handleCreateMeeting} className="space-y-4">
+                        <input type="text" placeholder="Titre de la réunion" value={newMeeting.title} onChange={(e)=>setNewMeeting({...newMeeting, title: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold" required />
+                        <textarea placeholder="Ordre du jour..." value={newMeeting.description} onChange={(e)=>setNewMeeting({...newMeeting, description: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold h-32" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <input type="date" value={newMeeting.date} onChange={(e)=>setNewMeeting({...newMeeting, date: e.target.value})} className="p-4 bg-slate-50 rounded-2xl font-bold" required />
+                            <input type="time" value={newMeeting.time} onChange={(e)=>setNewMeeting({...newMeeting, time: e.target.value})} className="p-4 bg-slate-50 rounded-2xl font-bold" required />
+                        </div>
+                        <div className="flex gap-3 pt-4">
+                            <button type="button" onClick={() => setShowNewMeeting(false)} className="flex-1 p-4 bg-slate-100 rounded-2xl font-black text-xs text-slate-500">ANNULER</button>
+                            <button type="submit" disabled={actionLoading} className="flex-1 p-4 bg-emerald-600 rounded-2xl font-black text-xs text-white shadow-lg shadow-emerald-200">{actionLoading ? 'EN COURS...' : 'ENREGISTRER'}</button>
+                        </div>
+                    </form>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DÉTAILS MEMBRE (VUE ADMIN) */}
       <AnimatePresence>
         {selectedUser && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[180] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg p-8 sm:p-10 relative overflow-hidden">
+              <button onClick={() => setSelectedUser(null)} className="absolute top-6 right-6 p-2.5 bg-slate-50 text-slate-400 hover:text-slate-800 rounded-full transition-all"><X size={24} /></button>
               
-              <div className="p-6 sm:p-8">
-                {/* Header Profil */}
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-5">
-                    {selectedUser.photo_url ? (
-                       <img src={selectedUser.photo_url} className="w-20 h-20 rounded-2xl object-cover border-4 border-slate-50 shadow-sm" />
-                    ) : (
-                       <div className="w-20 h-20 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl font-bold border-4 border-white shadow-sm">{selectedUser.first_name[0]}{selectedUser.last_name[0]}</div>
-                    )}
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-800 leading-tight">{selectedUser.first_name} <br/> {selectedUser.last_name}</h2>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider mt-2 ${selectedUser.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                        {selectedUser.role} • {selectedUser.status === 'approved' ? 'Actif' : 'En attente'}
-                      </span>
+              <div className="flex flex-col items-center mb-10 text-center">
+                <img src={selectedUser.photo_url} className="w-32 h-32 rounded-[2.5rem] object-cover border-4 border-emerald-50 shadow-2xl mb-6" />
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight">{selectedUser.first_name} <br/> {selectedUser.last_name}</h2>
+                <div className="mt-4 px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">{selectedUser.role} • ADC ACTIF</div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                <div className="bg-slate-50/50 p-5 rounded-[1.5rem] border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Contact</p>
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><Phone size={14} className="text-emerald-500"/> {selectedUser.phone}</div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 truncate"><Mail size={14} className="text-emerald-500"/> {selectedUser.email || 'N/A'}</div>
                     </div>
-                  </div>
-                  <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors bg-slate-50"><X size={20} /></button>
                 </div>
-
-                {/* Contacts */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-emerald-600 shadow-sm"><Phone size={14}/></div>
-                    <div><p className="text-[10px] font-bold text-slate-400 uppercase">Téléphone</p><p className="text-sm font-semibold text-slate-800">{selectedUser.phone}</p></div>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-emerald-600 shadow-sm"><Mail size={14}/></div>
-                    <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase">Email</p><p className="text-sm font-semibold text-slate-800 truncate">{selectedUser.email || 'N/A'}</p></div>
-                  </div>
+                <div className="bg-slate-50/50 p-5 rounded-[1.5rem] border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Province</p>
+                    <div className="flex items-center gap-2 text-sm font-black text-slate-700 uppercase tracking-tighter"><MapPin size={16} className="text-emerald-500"/> {selectedUser.province}</div>
                 </div>
+              </div>
 
-                {/* Adresse Complète */}
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><MapPin size={16} className="text-emerald-500" /> Localisation</h3>
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-6">
-                    <DetailItem label="Province" val={selectedUser.province} />
-                    <DetailItem label="Région" val={selectedUser.region} />
-                    <DetailItem label="District" val={selectedUser.district} />
-                    <DetailItem label="Commune" val={selectedUser.commune} />
-                    <div className="col-span-2 pt-2 border-t border-slate-200/60"><DetailItem label="Fokontany" val={selectedUser.fokontany} /></div>
+              <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white">
+                  <h3 className="text-[10px] font-black text-white/40 uppercase mb-6 tracking-[0.3em] text-center italic">Détails Localisation</h3>
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                    <DetailItemAdmin label="Région" val={selectedUser.region} />
+                    <DetailItemAdmin label="District" val={selectedUser.district} />
+                    <DetailItemAdmin label="Commune" val={selectedUser.commune} />
+                    <DetailItemAdmin label="Fokontany" val={selectedUser.fokontany} />
                   </div>
-                </div>
-
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.msg}
+        confirmText="OUI, SUPPRIMER"
+        type="danger"
+        loading={actionLoading}
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 }
 
-// Composants Utilitaires (Garde le beau design)
+// COMPONENTS
 const StatCard = ({ icon, label, val, color }: any) => (
-  <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
-    <div className={`w-12 h-12 rounded-xl bg-${color}-50 text-${color}-600 flex items-center justify-center`}>{icon}</div>
-    <div><p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p><h2 className="text-2xl font-bold text-slate-800">{val}</h2></div>
+  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-emerald-100 transition-all flex items-center gap-5 group">
+    <div className={`w-14 h-14 rounded-2xl bg-${color}-50 text-${color}-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform`}>{icon}</div>
+    <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <h2 className="text-2xl font-black text-slate-800 tracking-tight">{val}</h2>
+    </div>
   </div>
 );
 
-const DetailItem = ({ label, val }: any) => (
-  <div>
-    <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">{label}</p>
-    <p className="text-sm font-semibold text-slate-700">{val || <span className="text-slate-300 italic">Non renseigné</span>}</p>
+const DetailItemAdmin = ({ label, val }: any) => (
+  <div className="text-center sm:text-left">
+    <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">{label}</p>
+    <p className="text-xs font-bold text-emerald-400 truncate tracking-tight">{val || '---'}</p>
   </div>
 );
