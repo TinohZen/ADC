@@ -1,28 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Users, Calendar, Check, X, Plus, Trash2, Search, TrendingUp, UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck } from 'lucide-react';
+import { fr } from 'date-fns/locale';
+import { Users, Calendar, Check, Trash2, Search, TrendingUp, UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function AdminDashboard() {
-   // 👉 NOUVEAU : On récupère l'utilisateur actuel pour connaître son rôle précis
-   const currentUser = JSON.parse(localStorage.getItem('adc_user') || '{}');
-   const isSuperAdmin = currentUser.role === 'admin';
   const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');
   const [users, setUsers] = useState<any[]>([]);
-  const[meetings, setMeetings] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: 0, type: 'user' as any });
+  const[confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: 0, type: 'user' as any });
   const [popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
-  const[actionLoading, setActionLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
-  const [newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
+  const[newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
+
+  // GESTION DES RÔLES ET TITRES DYNAMIQUES
+  const userStr = localStorage.getItem('adc_user');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const isSuperAdmin = currentUser?.role === 'admin';
+  const isChef = currentUser?.role === 'chef';
+  const dashboardTitle = isChef ? 'ADC Chef' : 'ADC Admin';
 
   useEffect(() => { fetchData(); }, [activeTab]);
 
@@ -47,7 +52,7 @@ export default function AdminDashboard() {
   const handleStatus = async (id: number, status: string, e: any) => {
     e.stopPropagation();
     await apiFetch(`/api/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
-    setPopup({ isOpen: true, title: 'Mis à jour', msg: 'Le statut du membre a été modifié.', type: 'success' });
+    setPopup({ isOpen: true, title: 'Mis à jour', msg: 'Le statut a été modifié.', type: 'success' });
     fetchData();
   };
 
@@ -82,7 +87,7 @@ export default function AdminDashboard() {
     <div className="space-y-10 pb-20 font-sans">
       <div className="flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="text-center md:text-left">
-          <h2 className="text-4xl font-black text-slate-800 tracking-tighter">ADC Admin</h2>
+          <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">{dashboardTitle}</h2>
           <p className="text-emerald-600 font-bold text-xs uppercase tracking-[0.3em] mt-1">Gestion Nationale</p>
         </div>
         <div className="flex bg-white p-2 rounded-3xl shadow-xl border border-slate-100">
@@ -104,7 +109,7 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="relative group">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={20} />
-            <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-5 bg-white rounded-[2rem] shadow-sm border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700" />
+            <input type="text" placeholder="Rechercher un membre..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-5 bg-white rounded-[2rem] shadow-sm border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -118,23 +123,18 @@ export default function AdminDashboard() {
                     </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-800 text-sm leading-tight truncate">{u.first_name} {u.last_name}</h3>
+                  <h3 className="font-bold text-slate-800 text-sm leading-tight truncate uppercase">{u.first_name} {u.last_name}</h3>
                   <div className={`text-[10px] font-bold uppercase mt-1 flex items-center gap-1 ${u.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}`}>
                     {u.status === 'approved' ? 'Approuvé' : 'En attente'}
                   </div>
                 </div>
-                {/* <div className="flex flex-col gap-2">
-                  {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
-                  <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-                </div> */}
                 <div className="flex flex-col gap-2">
-  {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
-  
-  {/* 👉 Le bouton corbeille n'apparaît QUE pour le super admin */}
-  {isSuperAdmin && (
-    <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-  )}
-</div>
+                  {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
+                  {/* LE BOUTON SUPPRIMER EST CACHÉ POUR LE CHEF */}
+                  {isSuperAdmin && (
+                    <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+                  )}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -146,17 +146,13 @@ export default function AdminDashboard() {
               {meetings.map(m => { 
                 const s = getStatus(m.date, m.time);
                 return (
-                // <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
-                //     <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
-                //     <div className="flex justify-between items-start mb-6">
-                //         <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
                 <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
-    {/* 👉 Le bouton corbeille n'apparaît QUE pour le super admin */}
-    {isSuperAdmin && (
-       <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
-    )}
-    <div className="flex justify-between items-start mb-6">
-       <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
+                    {/* LE BOUTON SUPPRIMER EST CACHÉ POUR LE CHEF */}
+                    {isSuperAdmin && (
+                        <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+                    )}
+                    <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
                         <span className={`px-2 py-1 text-[10px] font-bold text-white rounded-md whitespace-nowrap mt-1 ${s.color}`}>{s.label}</span>
                     </div>
                     <div className="flex gap-4 mb-8 text-[10px] font-black text-slate-400 tracking-widest uppercase flex-1">
@@ -210,7 +206,7 @@ export default function AdminDashboard() {
                         <img src="/logoADC.png" className="w-full h-full object-contain opacity-30 grayscale" />
                     </div>
                 )}
-                <h2 className="text-2xl font-bold text-slate-800 leading-tight">{selectedUser.first_name} <br/> {selectedUser.last_name}</h2>
+                <h2 className="text-2xl font-bold text-slate-800 leading-tight uppercase">{selectedUser.first_name} <br/> {selectedUser.last_name}</h2>
                 <div className="mt-4 px-6 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold uppercase flex items-center gap-2">
                     <UserCheck size={14}/> {selectedUser.status === 'approved' ? 'Membre Actif' : 'En attente'}
                 </div>
