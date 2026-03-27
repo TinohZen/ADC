@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// L'import 'Users' est bien présent ici :
 import { ArrowLeft, Download, Check, X, Calendar, Clock, FileText, Edit3, Save, Loader2, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -13,17 +12,17 @@ import ConfirmModal from '../components/ConfirmModal';
 export default function MeetingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const[meeting, setMeeting] = useState<any>(null);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const[loading, setLoading] = useState(true);
+  const [meeting, setMeeting] = useState<any>(null);
+  const[attendance, setAttendance] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', date: '', time: '' });
-  const [savingInfo, setSavingInfo] = useState(false);
+  const[savingInfo, setSavingInfo] = useState(false);
 
-  const[report, setReport] = useState('');
-  const [savingReport, setSavingReport] = useState(false);
-  const[popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
+  const [report, setReport] = useState('');
+  const[savingReport, setSavingReport] = useState(false);
+  const [popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
 
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -34,7 +33,7 @@ export default function MeetingDetails() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const[meetingRes, attendanceRes] = await Promise.all([
+      const [meetingRes, attendanceRes] = await Promise.all([
         apiFetch('/api/meetings'),
         apiFetch(`/api/meetings/${id}/attendance`)
       ]);
@@ -70,14 +69,17 @@ export default function MeetingDetails() {
     } finally { setSavingInfo(false); }
   };
 
+  // 🔥 LE BUG ÉTAIT ICI : Utilisation de a.id pour mettre à jour la liste locale
   const handleUpdateAttendance = async (userId: number, status: string) => {
-    if (!canManage) return;
+    if (!canManage || !userId) return; // Sécurité supplémentaire
     try {
-      // Correction ici : a.user_id au lieu de a.id car c'est la clé ramenée par la base de données
-      setAttendance(prev => prev.map(a => a.user_id === userId ? { ...a, status } : a));
+      // Met à jour instantanément la couleur du bouton
+      setAttendance(prev => prev.map(a => a.id === userId ? { ...a, status } : a));
+      // Envoie la requête au serveur
       await apiFetch(`/api/meetings/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ user_id: userId, status }) });
     } catch (err) { 
       setPopup({ isOpen: true, title: 'Erreur', msg: "Erreur de connexion au serveur.", type: 'danger' });
+      fetchData(); // En cas d'erreur, on recharge les vraies données
     }
   };
 
@@ -120,7 +122,7 @@ export default function MeetingDetails() {
       theme: 'grid', headStyles: { fillColor:[4, 120, 87] }, styles: { fontSize: 10 },
       didParseCell: function(data: any) {
         if (data.section === 'body' && data.column.index === 3) {
-          data.cell.styles.textColor = data.cell.raw === 'Présent(e)' ?[4, 120, 87] : [220, 38, 38];
+          data.cell.styles.textColor = data.cell.raw === 'Présent(e)' ?[4, 120, 87] :[220, 38, 38];
         }
       }
     });
@@ -328,7 +330,8 @@ export default function MeetingDetails() {
             <tbody className="divide-y divide-slate-50">
               <AnimatePresence>
                 {attendance.map((a) => (
-                  <motion.tr key={a.user_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors">
+                  // 🔥 LE BUG A ÉTÉ CORRIGÉ ICI (key={a.id})
+                  <motion.tr key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors">
                     <td className="p-5 pl-8">
                       <div className="flex items-center gap-4">
                         {a.photo_url ? (
@@ -350,10 +353,11 @@ export default function MeetingDetails() {
                     <td className="p-5 pr-8 text-right">
                       {canManage ? (
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleUpdateAttendance(a.user_id, 'present')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'present' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                          {/* 🔥 LE BUG A ÉTÉ CORRIGÉ ICI AUSSI : a.id */}
+                          <button onClick={() => handleUpdateAttendance(a.id, 'present')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'present' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
                             <Check size={14} /> Présent
                           </button>
-                          <button onClick={() => handleUpdateAttendance(a.user_id, 'absent')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'absent' ? 'bg-red-500 text-white shadow-md shadow-red-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                          <button onClick={() => handleUpdateAttendance(a.id, 'absent')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'absent' ? 'bg-red-500 text-white shadow-md shadow-red-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
                             <X size={14} /> Absent
                           </button>
                         </div>
