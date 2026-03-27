@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Check, X, Calendar, Clock, FileText, Edit3, Save, Loader2 } from 'lucide-react';
+// L'import 'Users' est bien présent ici :
+import { ArrowLeft, Download, Check, X, Calendar, Clock, FileText, Edit3, Save, Loader2, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -12,21 +13,20 @@ import ConfirmModal from '../components/ConfirmModal';
 export default function MeetingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [meeting, setMeeting] = useState<any>(null);
-  const[attendance, setAttendance] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const[meeting, setMeeting] = useState<any>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const[loading, setLoading] = useState(true);
   
   const [isEditingInfo, setIsEditingInfo] = useState(false);
-  const[editForm, setEditForm] = useState({ title: '', description: '', date: '', time: '' });
-  const[savingInfo, setSavingInfo] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', date: '', time: '' });
+  const [savingInfo, setSavingInfo] = useState(false);
 
-  const [report, setReport] = useState('');
+  const[report, setReport] = useState('');
   const [savingReport, setSavingReport] = useState(false);
   const[popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
 
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
-  // Autoriser Admin ET Chef
   const canManage = user?.role === 'admin' || user?.role === 'chef';
 
   useEffect(() => { fetchData(); }, [id]);
@@ -70,13 +70,11 @@ export default function MeetingDetails() {
     } finally { setSavingInfo(false); }
   };
 
-  // RÉPARATION DU BUG DE PRÉSENCE (Utilisation de a.id au lieu de a.user_id)
   const handleUpdateAttendance = async (userId: number, status: string) => {
     if (!canManage) return;
     try {
-      // Mise à jour visuelle instantanée
-      setAttendance(prev => prev.map(a => a.id === userId ? { ...a, status } : a));
-      // Envoi au serveur
+      // Correction ici : a.user_id au lieu de a.id car c'est la clé ramenée par la base de données
+      setAttendance(prev => prev.map(a => a.user_id === userId ? { ...a, status } : a));
       await apiFetch(`/api/meetings/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ user_id: userId, status }) });
     } catch (err) { 
       setPopup({ isOpen: true, title: 'Erreur', msg: "Erreur de connexion au serveur.", type: 'danger' });
@@ -201,11 +199,11 @@ export default function MeetingDetails() {
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Date</label>
-                      <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500" required />
+                      <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700" required />
                   </div>
                   <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Heure</label>
-                      <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500" required />
+                      <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700" required />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -231,6 +229,7 @@ export default function MeetingDetails() {
                     <div className="flex items-center gap-3 text-slate-800 font-bold"><Clock size={18} className="text-emerald-500"/> {meeting.time}</div>
                   </div>
                 </div>
+                
                 <div className="sm:col-span-2">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-2">Description</h4>
                   <div className="bg-emerald-50/50 rounded-[2rem] p-6 border-l-4 border-emerald-500 text-slate-700 text-sm leading-relaxed min-h-[150px] font-medium whitespace-pre-wrap shadow-inner">
@@ -259,7 +258,7 @@ export default function MeetingDetails() {
               
               <div className="relative z-10">
                   {canManage ? (
-                    <textarea value={report} onChange={(e) => setReport(e.target.value)} placeholder="Rédigez le compte rendu ici..." className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] focus:bg-white/10 outline-none resize-none min-h-[250px] text-sm leading-relaxed text-white font-medium whitespace-pre-wrap placeholder:text-slate-500 transition-all" />
+                    <textarea value={report} onChange={(e) => setReport(e.target.value)} placeholder="Rédigez le compte rendu ici. Les sauts de ligne seront respectés..." className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] focus:bg-white/10 outline-none resize-none min-h-[250px] text-sm leading-relaxed text-white font-medium whitespace-pre-wrap placeholder:text-slate-500 transition-all" />
                   ) : (
                     <div className="bg-white/5 rounded-[2rem] p-8 border border-white/10 text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                       {meeting.report || <span className="text-slate-500 italic">Aucun compte rendu rédigé pour le moment.</span>}
@@ -329,7 +328,7 @@ export default function MeetingDetails() {
             <tbody className="divide-y divide-slate-50">
               <AnimatePresence>
                 {attendance.map((a) => (
-                  <motion.tr key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors">
+                  <motion.tr key={a.user_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors">
                     <td className="p-5 pl-8">
                       <div className="flex items-center gap-4">
                         {a.photo_url ? (
@@ -351,10 +350,10 @@ export default function MeetingDetails() {
                     <td className="p-5 pr-8 text-right">
                       {canManage ? (
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleUpdateAttendance(a.id, 'present')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'present' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                          <button onClick={() => handleUpdateAttendance(a.user_id, 'present')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'present' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
                             <Check size={14} /> Présent
                           </button>
-                          <button onClick={() => handleUpdateAttendance(a.id, 'absent')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'absent' ? 'bg-red-500 text-white shadow-md shadow-red-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                          <button onClick={() => handleUpdateAttendance(a.user_id, 'absent')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'absent' ? 'bg-red-500 text-white shadow-md shadow-red-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
                             <X size={14} /> Absent
                           </button>
                         </div>
