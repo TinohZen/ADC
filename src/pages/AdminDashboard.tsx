@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Users, Calendar, Check, Trash2, Search, TrendingUp, UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck } from 'lucide-react';
+import { Users, Calendar, Check, X, Plus, Trash2, Search, TrendingUp, UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
@@ -11,23 +11,22 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');
   const [users, setUsers] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
+  const[stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const[confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: 0, type: 'user' as any });
+  const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: 0, type: 'user' as any });
   const [popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
-  const [actionLoading, setActionLoading] = useState(false);
+  const[actionLoading, setActionLoading] = useState(false);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
-  const[newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
+  const [newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
 
   // GESTION DES RÔLES ET TITRES DYNAMIQUES
   const userStr = localStorage.getItem('adc_user');
   const currentUser = userStr ? JSON.parse(userStr) : null;
   const isSuperAdmin = currentUser?.role === 'admin';
-  const isChef = currentUser?.role === 'chef';
-  const dashboardTitle = isChef ? 'ADC Chef' : 'ADC Admin';
+  const dashboardTitle = currentUser?.role === 'chef' ? 'ADC Chef' : 'ADC Admin';
 
   useEffect(() => { fetchData(); }, [activeTab]);
 
@@ -130,7 +129,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex flex-col gap-2">
                   {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
-                  {/* LE BOUTON SUPPRIMER EST CACHÉ POUR LE CHEF */}
+                  {/* SEUL L'ADMIN PEUT SUPPRIMER */}
                   {isSuperAdmin && (
                     <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
                   )}
@@ -147,7 +146,7 @@ export default function AdminDashboard() {
                 const s = getStatus(m.date, m.time);
                 return (
                 <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
-                    {/* LE BOUTON SUPPRIMER EST CACHÉ POUR LE CHEF */}
+                    {/* SEUL L'ADMIN PEUT SUPPRIMER */}
                     {isSuperAdmin && (
                         <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
                     )}
@@ -232,7 +231,7 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      <ConfirmModal isOpen={confirmDelete.isOpen} title="Suppression" message="Cette action est irréversible. Voulez-vous continuer ?" confirmText="Oui, supprimer" type="danger" loading={actionLoading} onConfirm={executeDelete} onCancel={() => setConfirmDelete({ ...confirmDelete, isOpen: false })} />
+      <ConfirmModal isOpen={confirmDelete.isOpen} title="Supprimer ?" message="Cette action est irréversible. Voulez-vous continuer ?" confirmText="Oui, supprimer" type="danger" loading={actionLoading} onConfirm={executeDelete} onCancel={() => setConfirmDelete({ ...confirmDelete, isOpen: false })} />
       <ConfirmModal isOpen={popup.isOpen} title={popup.title} message={popup.msg} type={popup.type} onlyConfirm onCancel={() => setPopup({ ...popup, isOpen: false })} />
     </div>
   );
