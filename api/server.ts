@@ -50,10 +50,24 @@ const authenticateToken = (
   );
 };
 
-// Vérifier si l'utilisateur est Admin
+// Vérifier si l'utilisateur est Admin OU Chef de fil
+const requireAdminOrChef = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (req.user?.role !== "admin" && req.user?.role !== "chef") {
+    return res.status(403).json({ error: "Droits insuffisants" });
+  }
+  next();
+};
+
+// Vérifier si l'utilisateur est STRICTEMENT Admin (Pour les suppressions)
 const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user?.role !== "admin") {
-    return res.status(403).json({ error: "Droits administrateur requis" });
+    return res
+      .status(403)
+      .json({ error: "Action réservée à l'administrateur principal" });
   }
   next();
 };
@@ -77,7 +91,6 @@ async function uploadPhoto(
   const { error } = await supabase.storage
     .from("avatars")
     .upload(fileName, buffer, { contentType, upsert: true });
-
   if (error) throw error;
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
@@ -212,7 +225,6 @@ app.get("/api/users", authenticateToken, async (req, res) => {
   }
 });
 
-// (Vérifie bien que la route /api/users/:id contient tous les champs)
 app.put("/api/users/:id", authenticateToken, async (req: any, res: any) => {
   const { id } = req.params;
   const {
@@ -227,19 +239,14 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res: any) => {
     commune,
     fokontany,
   } = req.body;
+
   if (req.user.role !== "admin" && String(req.user.id) !== String(id))
     return res.status(403).json({ error: "Interdit" });
+
   try {
     let url = photo_url;
     if (photo_url?.startsWith("data:image")) {
-      const matches = photo_url.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      const buffer = Buffer.from(matches[2], "base64");
-      const fileName = `user_${id}_${Date.now()}.png`;
-      await supabase.storage
-        .from("avatars")
-        .upload(fileName, buffer, { contentType: "image/png" });
-      url = supabase.storage.from("avatars").getPublicUrl(fileName)
-        .data.publicUrl;
+      url = await uploadPhoto(photo_url, id);
     }
     await pool.query(
       "UPDATE users SET first_name=$1, last_name=$2, phone=$3, email=$4, photo_url=$5, province=$6, region=$7, district=$8, commune=$9, fokontany=$10 WHERE id=$11",
@@ -262,10 +269,11 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res: any) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 app.put(
   "/api/users/:id/password",
   authenticateToken,
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: any) => {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
 
@@ -278,10 +286,19 @@ app.put(
         "SELECT password FROM users WHERE id = $1",
         [id]
       );
-      const valid = await bcrypt.compare(
-        currentPassword,
-        userRes.rows[0].password
-      );
+      const storedPassword = userRes.rows[0].password;
+
+      // FIX : GESTION DES ANCIENS MOTS DE PASSE NON CRYPTÉS POUR LE CHANGEMENT
+      let valid = false;
+      if (
+        storedPassword.startsWith("$2b$") ||
+        storedPassword.startsWith("$2a$")
+      ) {
+        valid = await bcrypt.compare(currentPassword, storedPassword);
+      } else {
+        valid = currentPassword === storedPassword;
+      }
+
       if (!valid)
         return res.status(400).json({ error: "Mot de passe actuel incorrect" });
 
@@ -306,10 +323,9 @@ app.get("/api/stats", authenticateToken, async (req, res) => {
       "SELECT COUNT(*) FROM users WHERE status = 'pending'"
     );
     const meetings = await pool.query("SELECT COUNT(*) FROM meetings");
-    const att = await pool.query(`
-      SELECT COUNT(*) as tot, SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as pres 
-      FROM attendance
-    `);
+    const att = await pool.query(
+      "SELECT COUNT(*) as tot, SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as pres FROM attendance"
+    );
 
     const totalRecords = parseInt(att.rows[0].tot);
     const totalPresent = parseInt(att.rows[0].pres || "0");
@@ -342,29 +358,52 @@ app.get("/api/meetings", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/meetings", authenticateToken, requireAdmin, async (req, res) => {
-  const { title, description, date, time } = req.body;
-  try {
-    const result = await pool.query(
-      "INSERT INTO meetings (title, description, date, time) VALUES ($1, $2, $3, $4) RETURNING id",
-      [title, description, date, time]
-    );
-    res.json({ id: result.rows[0].id });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+// Créer une réunion : Admin ET Chef
+app.post(
+  "/api/meetings",
+  authenticateToken,
+  requireAdminOrChef,
+  async (req, res) => {
+    const { title, description, date, time } = req.body;
+    try {
+      const result = await pool.query(
+        "INSERT INTO meetings (title, description, date, time) VALUES ($1, $2, $3, $4) RETURNING id",
+        [title, description, date, time]
+      );
+      res.json({ id: result.rows[0].id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
+
+// NOUVEAU : Modifier une réunion : Admin ET Chef
+app.put(
+  "/api/meetings/:id",
+  authenticateToken,
+  requireAdminOrChef,
+  async (req, res) => {
+    const { id } = req.params;
+    const { title, description, date, time } = req.body;
+    try {
+      await pool.query(
+        "UPDATE meetings SET title = $1, description = $2, date = $3, time = $4 WHERE id = $5",
+        [title, description, date, time, id]
+      );
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    // PRÉSENCE DYNAMIQUE : On liste tous les membres approuvés
     const attendance = await pool.query(
       `SELECT u.*, COALESCE(a.status, 'absent') as status 
-       FROM users u 
-       LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
-       WHERE u.status = 'approved' AND u.role = 'member'
-       ORDER BY u.first_name ASC`,
+       FROM users u LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
+       WHERE u.status = 'approved' AND u.role = 'member' ORDER BY u.first_name ASC`,
       [id]
     );
     res.json(attendance.rows);
@@ -373,17 +412,17 @@ app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
   }
 });
 
+// Faire l'appel (Présences) : Admin ET Chef
 app.put(
   "/api/meetings/:id/attendance",
   authenticateToken,
-  requireAdmin,
+  requireAdminOrChef,
   async (req, res) => {
     const { id } = req.params;
     const { user_id, status } = req.body;
     try {
       await pool.query(
-        `INSERT INTO attendance (meeting_id, user_id, status) VALUES ($1, $2, $3) 
-       ON CONFLICT (meeting_id, user_id) DO UPDATE SET status = EXCLUDED.status`,
+        `INSERT INTO attendance (meeting_id, user_id, status) VALUES ($1, $2, $3) ON CONFLICT (meeting_id, user_id) DO UPDATE SET status = EXCLUDED.status`,
         [id, user_id, status]
       );
       res.json({ success: true });
@@ -405,10 +444,11 @@ app.get("/api/meetings/:id/report", authenticateToken, async (req, res) => {
   }
 });
 
+// Rédiger le rapport : Admin ET Chef
 app.put(
   "/api/meetings/:id/report",
   authenticateToken,
-  requireAdmin,
+  requireAdminOrChef,
   async (req, res) => {
     try {
       await pool.query("UPDATE meetings SET report = $1 WHERE id = $2", [
@@ -426,10 +466,11 @@ app.put(
 // --- ROUTES D'ADMINISTRATION (ADMIN SEUL)
 // ==========================================
 
+// Approuver/Refuser un membre : Admin ET Chef
 app.put(
   "/api/users/:id/status",
   authenticateToken,
-  requireAdmin,
+  requireAdminOrChef,
   async (req, res) => {
     try {
       await pool.query("UPDATE users SET status = $1 WHERE id = $2", [
@@ -443,6 +484,7 @@ app.put(
   }
 );
 
+// 🚨 SUPPRIMER UN MEMBRE : STRICTEMENT ADMIN !
 app.delete(
   "/api/users/:id",
   authenticateToken,
@@ -457,6 +499,7 @@ app.delete(
   }
 );
 
+// 🚨 SUPPRIMER UNE RÉUNION : STRICTEMENT ADMIN !
 app.delete(
   "/api/meetings/:id",
   authenticateToken,

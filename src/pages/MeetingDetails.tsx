@@ -28,7 +28,9 @@ export default function MeetingDetails() {
 
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const isAdmin = user?.role === 'admin';
+  // const canManage = user?.role === 'admin';
+// Le chef et l'admin ont les droits de gestion sur la réunion
+const canManage = user?.role === 'admin' || user?.role === 'chef';
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -59,7 +61,7 @@ export default function MeetingDetails() {
 
   const handleUpdateMeetingInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!canManage) return;
     setSavingInfo(true);
     try {
       await apiFetch(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(editForm) });
@@ -72,7 +74,7 @@ export default function MeetingDetails() {
   };
 
   const handleUpdateAttendance = async (userId: number, status: string) => {
-    if (!isAdmin) return;
+    if (!canManage) return;
     try {
       await apiFetch(`/api/meetings/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ user_id: userId, status }) });
       setAttendance(attendance.map(a => a.user_id === userId ? { ...a, status } : a));
@@ -164,7 +166,7 @@ export default function MeetingDetails() {
           </div>
         </div>
         
-        {isAdmin && (
+        {canManage && (
           <button onClick={exportPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl text-xs font-black tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-emerald-200 w-full sm:w-auto justify-center">
             <Download size={18} /> EXPORTER PDF
           </button>
@@ -182,7 +184,7 @@ export default function MeetingDetails() {
                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><FileText size={20}/></div>
                 Informations
               </h3>
-              {isAdmin && !isEditingInfo && (
+              {canManage && !isEditingInfo && (
                 <button onClick={() => setIsEditingInfo(true)} className="flex items-center gap-2 text-[10px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl hover:bg-emerald-100 transition-all uppercase tracking-widest">
                     <Edit3 size={14}/> Modifier
                 </button>
@@ -241,7 +243,7 @@ export default function MeetingDetails() {
           </div>
 
           {/* COMPTE RENDU */}
-          {(isAdmin || meeting.report) && (
+          {(canManage || meeting.report) && (
             <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl p-8 sm:p-10 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
               <div className="flex justify-between items-center mb-8 relative z-10">
@@ -249,7 +251,7 @@ export default function MeetingDetails() {
                   <div className="p-2 bg-white/10 text-emerald-400 rounded-xl"><FileText size={20}/></div>
                   Compte Rendu
                 </h3>
-                {isAdmin && (
+                {canManage && (
                   <button onClick={handleSaveReport} disabled={savingReport || report === meeting.report} className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg">
                     {savingReport ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Enregistrer
                   </button>
@@ -257,7 +259,7 @@ export default function MeetingDetails() {
               </div>
               
               <div className="relative z-10">
-                  {isAdmin ? (
+                  {canManage ? (
                     <textarea value={report} onChange={(e) => setReport(e.target.value)} placeholder="Rédigez le compte rendu ici. Les sauts de ligne seront respectés..." className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] focus:bg-white/10 outline-none resize-none min-h-[250px] text-sm leading-relaxed text-white font-medium whitespace-pre-wrap placeholder:text-slate-500 transition-all" />
                   ) : (
                     <div className="bg-white/5 rounded-[2rem] p-8 border border-white/10 text-slate-200 text-sm leading-relaxed whitespace-pre-wrap font-medium">
@@ -346,7 +348,7 @@ export default function MeetingDetails() {
                       {a.district || a.region}
                     </td>
                     <td className="p-5 pr-8 text-right">
-                      {isAdmin ? (
+                      {canManage ? (
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => handleUpdateAttendance(a.user_id, 'present')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${a.status === 'present' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
                             <Check size={14} /> Présent

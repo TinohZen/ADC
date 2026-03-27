@@ -25,13 +25,25 @@ export default function App() {
   );
 }
 
+// function DashboardRouter() {
+//   const userStr = localStorage.getItem('adc_user');
+//   if (!userStr) return <Navigate to="/login" replace />;
+  
+//   const user = JSON.parse(userStr);
+//   if (user.role === 'admin') {
+//     return <AdminDashboard />;
+//   }
+//   return <MemberDashboard />;
+// }
 function DashboardRouter() {
   const userStr = localStorage.getItem('adc_user');
   if (!userStr) return <Navigate to="/login" replace />;
   
   const user = JSON.parse(userStr);
-  if (user.role === 'admin') {
+  // 👉 Si c'est un admin OU un chef, on lui montre l'interface de gestion
+  if (user.role === 'admin' || user.role === 'chef') {
     return <AdminDashboard />;
   }
+  // Sinon, c'est un membre simple
   return <MemberDashboard />;
 }

@@ -7,6 +7,9 @@ import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function AdminDashboard() {
+   // 👉 NOUVEAU : On récupère l'utilisateur actuel pour connaître son rôle précis
+   const currentUser = JSON.parse(localStorage.getItem('adc_user') || '{}');
+   const isSuperAdmin = currentUser.role === 'admin';
   const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');
   const [users, setUsers] = useState<any[]>([]);
   const[meetings, setMeetings] = useState<any[]>([]);
@@ -120,10 +123,18 @@ export default function AdminDashboard() {
                     {u.status === 'approved' ? 'Approuvé' : 'En attente'}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
+                {/* <div className="flex flex-col gap-2">
                   {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
                   <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
-                </div>
+                </div> */}
+                <div className="flex flex-col gap-2">
+  {u.status === 'pending' && <button onClick={(e)=>handleStatus(u.id, 'approved', e)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Check size={16}/></button>}
+  
+  {/* 👉 Le bouton corbeille n'apparaît QUE pour le super admin */}
+  {isSuperAdmin && (
+    <button onClick={(e)=>{e.stopPropagation(); setConfirmDelete({isOpen:true, id:u.id, type:'user'})}} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={16}/></button>
+  )}
+</div>
               </motion.div>
             ))}
           </div>
@@ -135,10 +146,17 @@ export default function AdminDashboard() {
               {meetings.map(m => { 
                 const s = getStatus(m.date, m.time);
                 return (
+                // <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
+                //     <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+                //     <div className="flex justify-between items-start mb-6">
+                //         <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
                 <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
-                    <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
-                    <div className="flex justify-between items-start mb-6">
-                        <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
+    {/* 👉 Le bouton corbeille n'apparaît QUE pour le super admin */}
+    {isSuperAdmin && (
+       <button onClick={() => setConfirmDelete({isOpen:true, id:m.id, type:'meeting'})} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+    )}
+    <div className="flex justify-between items-start mb-6">
+       <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
                         <span className={`px-2 py-1 text-[10px] font-bold text-white rounded-md whitespace-nowrap mt-1 ${s.color}`}>{s.label}</span>
                     </div>
                     <div className="flex gap-4 mb-8 text-[10px] font-black text-slate-400 tracking-widest uppercase flex-1">
