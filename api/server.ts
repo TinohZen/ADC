@@ -397,13 +397,31 @@ app.put(
   }
 );
 
+// app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
+//   const { id } = req.params;
+//   try {
+//     const attendance = await pool.query(
+//       `SELECT u.*, COALESCE(a.status, 'absent') as status
+//        FROM users u LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1
+//        WHERE u.status = 'approved' AND u.role = 'member' ORDER BY u.first_name ASC`,
+//       [id]
+//     );
+//     res.json(attendance.rows);
+//   } catch (err: any) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 app.get("/api/meetings/:id/attendance", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
+    // CORRECTION : On a enlevé "AND u.role = 'member'"
+    // Maintenant, TOUS les utilisateurs approuvés (Admin, Chef, Membre) sont dans la liste !
     const attendance = await pool.query(
       `SELECT u.*, COALESCE(a.status, 'absent') as status 
-       FROM users u LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
-       WHERE u.status = 'approved' AND u.role = 'member' ORDER BY u.first_name ASC`,
+       FROM users u 
+       LEFT JOIN attendance a ON u.id = a.user_id AND a.meeting_id = $1 
+       WHERE u.status = 'approved'
+       ORDER BY u.first_name ASC`,
       [id]
     );
     res.json(attendance.rows);
