@@ -6,6 +6,7 @@ import MemberDashboard from './pages/MemberDashboard';
 import MeetingDetails from './pages/MeetingDetails';
 import Layout from './components/Layout';
 import Profile from './pages/Profile';
+import AudioRoom from './pages/AudioRoom';
 
 export default function App() {
   return (
@@ -19,6 +20,9 @@ export default function App() {
           <Route path="dashboard" element={<DashboardRouter />} />
           <Route path="meetings/:id" element={<MeetingDetails />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="meetings/:id" element={<MeetingDetails />} />
+          <Route path="meetings/:id/room" element={<AudioRoom />} />
+           {/* NOUVELLE LIGNE ICI */}
         </Route>
       </Routes>
     </Router>

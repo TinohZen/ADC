@@ -155,8 +155,8 @@ export default function MeetingDetails() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 font-sans">
       
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+     {/* HEADER */}
+     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-all shadow-sm"><ArrowLeft size={20} /></button>
           <div>
@@ -168,11 +168,20 @@ export default function MeetingDetails() {
           </div>
         </div>
         
-        {canManage && (
-          <button onClick={exportPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl text-xs font-black tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-emerald-200 w-full sm:w-auto justify-center">
-            <Download size={18} /> EXPORTER PDF
-          </button>
-        )}
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto justify-end">
+          {/* NOUVEAU BOUTON SALON VOCAL */}
+          {(status.label === 'En cours' || status.label === 'À venir') && (
+            <button onClick={() => navigate(`/meetings/${id}/room`)} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl text-[10px] sm:text-xs font-black tracking-widest flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-200 animate-pulse">
+              🎤 REJOINDRE LE SALON VOCAL
+            </button>
+          )}
+
+          {canManage && (
+            <button onClick={exportPDF} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl text-[10px] sm:text-xs font-black tracking-widest flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-200">
+              <Download size={18} /> EXPORTER PDF
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
