@@ -8,16 +8,15 @@ export default function AudioRoom() {
   const navigate = useNavigate();
   const roomContainer = useRef<HTMLDivElement>(null);
   
-  // 🔥 CORRECTION DU BUG CONSOLE : Empêche le double-chargement du micro
-  const isJoined = useRef(false); 
+  // 🔥 CORRECTION : On sauvegarde l'instance pour pouvoir la détruire proprement
+  const zpRef = useRef<any>(null); 
 
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
   const canManage = user?.role === 'admin' || user?.role === 'chef';
 
   useEffect(() => {
-    if (!roomContainer.current || !user || isJoined.current) return;
-    isJoined.current = true;
+    if (!roomContainer.current || !user) return;
 
     const startMeeting = async (element: HTMLDivElement) => {
       const appID = Number(import.meta.env.VITE_ZEGO_APP_ID);
@@ -38,32 +37,27 @@ export default function AudioRoom() {
         `${user.first_name} ${user.last_name}`
       );
 
+      // Création de l'instance
       const zp = ZegoUIKitPrebuilt.create(kitToken);
+      zpRef.current = zp; // On stocke l'instance dans notre référence
 
-      // Attribution stricte des rôles pour forcer la "Main Levée"
+      // RÔLES : Host (Hôte) pour Admin/Chef, Audience (Auditeur) pour les Membres simples
       const userRole = canManage 
-        ? ZegoUIKitPrebuilt.Host     // L'Admin a tous les droits
-        : ZegoUIKitPrebuilt.Audience; // Le Membre est muet par défaut et doit lever la main
+        ? ZegoUIKitPrebuilt.Host 
+        : ZegoUIKitPrebuilt.Audience;
 
       zp.joinRoom({
         container: element,
-        
-        // 🔥 CORRECTION DES PHOTOS : On envoie l'URL de la photo ADC
-        userAvatarUrl: user.photo_url || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=10b981&color=fff`,
-        
         scenario: {
           mode: ZegoUIKitPrebuilt.LiveAudioRoom,
           config: {
             role: userRole,
           },
         },
-        
-        // Droits exclusifs Admin / Chef
-        showTurnOffRemoteMicrophoneButton: canManage, 
-        showRemoveUserButton: canManage,
-        
+        // On enlève les réglages manuels pour laisser ZegoCloud afficher
+        // ses propres boutons (Micro pour l'Admin, Lever la main pour le Membre)
         showPreJoinView: false,
-        showUserList: true,
+        userAvatarUrl: user.photo_url || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=10b981&color=fff`,
         onLeaveRoom: () => {
           navigate(`/meetings/${id}`);
         },
@@ -72,11 +66,13 @@ export default function AudioRoom() {
 
     startMeeting(roomContainer.current);
 
-    // Nettoyage quand on quitte la page
+    // 🔥 LE NETTOYAGE MAGIQUE : S'exécute quand on quitte la page
     return () => {
-      isJoined.current = false;
+      if (zpRef.current) {
+        zpRef.current.destroy(); // Déconnecte proprement le micro et le serveur
+      }
     };
-  }, [id, user, navigate, canManage]);
+  },[id, user, navigate, canManage]);
 
   if (!user) return <div>Accès refusé</div>;
 
@@ -84,7 +80,7 @@ export default function AudioRoom() {
     <div className="fixed inset-0 z-[999] bg-slate-900 flex flex-col font-sans">
       <div className="p-4 bg-slate-800 flex items-center justify-between border-b border-slate-700 shadow-xl z-10">
         <button onClick={() => navigate(`/meetings/${id}`)} className="px-4 py-2.5 bg-slate-700 text-white rounded-xl flex items-center gap-2 hover:bg-red-500 transition-all font-black text-[10px] uppercase tracking-widest shadow-md">
-          <ArrowLeft size={16}/> Quitter
+          <ArrowLeft size={16}/> Quitter le salon
         </button>
         <h2 className="text-emerald-400 font-black tracking-[0.2em] uppercase text-xs sm:text-sm">
           SALON VOCAL ADC
@@ -94,5 +90,4 @@ export default function AudioRoom() {
       <div ref={roomContainer} className="flex-1 w-full h-full bg-slate-900" />
     </div>
   );
-//   dfdfdf
 }
