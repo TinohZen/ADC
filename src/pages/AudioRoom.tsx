@@ -9,16 +9,16 @@ export default function AudioRoom() {
   const roomContainer = useRef<HTMLDivElement>(null);
   const zpRef = useRef<any>(null);
   const isJoined = useRef(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
   
-  // Définition du rôle : Admin/Chef = Hôte, Membre = Auditeur
-  const isHost = user?.role === 'admin' || user?.role === 'chef';
+  // Définition des privilèges
+  const isPrivileged = user?.role === 'admin' || user?.role === 'chef';
 
   useEffect(() => {
-    // Empêche la double connexion qui fait bugger le micro
+    // 1. Sécurité anti-doublon (Fixe l'erreur 'publisher already exist')
     if (!roomContainer.current || !user || isJoined.current) return;
     isJoined.current = true;
 
@@ -28,7 +28,7 @@ export default function AudioRoom() {
         const serverSecret = import.meta.env.VITE_ZEGO_SERVER_SECRET;
         const roomID = `ADC_Meeting_${id}`;
 
-        // Génération du token
+        // 2. Génération du Token
         const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
           appID,
           serverSecret,
@@ -37,99 +37,112 @@ export default function AudioRoom() {
           `${user.first_name} ${user.last_name}`
         );
 
+        // 3. Création de l'instance Zego
         const zp = ZegoUIKitPrebuilt.create(kitToken);
         zpRef.current = zp;
 
-        const userRole = isHost 
-          ? ZegoUIKitPrebuilt.Host 
-          : ZegoUIKitPrebuilt.Audience;
+        // Définition du rôle pour le mode Audio Room
+        const role = isPrivileged ? ZegoUIKitPrebuilt.Host : ZegoUIKitPrebuilt.Audience;
 
+        // 4. Rejoindre la salle avec configuration optimisée
         zp.joinRoom({
           container: roomContainer.current,
           scenario: {
             mode: ZegoUIKitPrebuilt.LiveAudioRoom,
             config: {
-              role: userRole,
+              role: role,
+              addBufferWhenAppointAsSpeaker: true
             },
           },
-          // GESTION DE LA PHOTO DE PROFIL
-          // Si la photo est une URL (Supabase), on l'envoie. Sinon on met un avatar par défaut.
-          userAvatarUrl: user.photo_url && user.photo_url.startsWith('http') 
-            ? user.photo_url 
-            : `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=10b981&color=fff`,
+          // Utilisation de la photo Supabase ou Avatar par défaut
+          userAvatarUrl: user.photo_url || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=10b981&color=fff`,
+          
+          // CONFIGURATION INTERFACE
+          showPreJoinView: false, // Entrée directe
+          showUserList: true,     // Liste des membres visible
+          showAudioVideoSettingsButton: true,
+          
+          // SÉCURITÉ MICRO (Fixe l'erreur 'cannot start publish')
+          // On ne force pas le micro à l'entrée, l'utilisateur l'active manuellement
+          turnOnMicrophoneWhenJoining: false, 
+          turnOnCameraWhenJoining: false,
+          showMyCameraToggleButton: true,
+          showMyMicrophoneToggleButton: true,
+          
+          // DROITS DE MODÉRATION (Admin & Chef seulement)
+          showTurnOffRemoteMicrophoneButton: isPrivileged, 
+          showTurnOffRemoteCameraButton: isPrivileged,
+          showRemoveUserButton: isPrivileged,
 
-          // INTERFACE FIXE (Ne se cache plus)
+          // BARRE DE MENU FIXE
           bottomMenuBarConfig: {
             hideAutomatically: false,
             hideByClick: false,
           },
 
-          showPreJoinView: false,
-          showUserList: true,
-          showAudioVideoSettingsButton: true,
-          turnOnCameraWhenJoining: false,
-          showMyCameraToggleButton: false,
-          showScreenSharingButton: false,
-          
-          onLeaveRoom: () => {
-            handleExit();
-          },
+          onLeaveRoom: () => handleExit(),
         });
-        setIsInitializing(false);
+
+        setLoading(false);
       } catch (error) {
-        console.error("Erreur Zego:", error);
+        console.error("Erreur d'initialisation ZegoCloud:", error);
+        setLoading(false);
       }
     };
 
     startMeeting();
 
+    // 5. NETTOYAGE ABSOLU (S'exécute quand on quitte la page ou l'onglet)
     return () => {
       if (zpRef.current) {
         zpRef.current.destroy();
-        isJoined.current = false;
+        zpRef.current = null;
       }
+      isJoined.current = false;
     };
-  }, [id, user, isHost]);
+  }, [id, user, isPrivileged]);
 
   const handleExit = () => {
     if (zpRef.current) {
       zpRef.current.destroy();
+      zpRef.current = null;
     }
+    isJoined.current = false;
     navigate(`/meetings/${id}`);
   };
 
   if (!user) return <div className="p-10 text-center font-bold">Accès non autorisé</div>;
 
   return (
-    <div className="fixed inset-0 z-[999] bg-[#1c1f2e] flex flex-col font-sans">
-      {/* BARRE DE NAVIGATION (SANS UPPERCASE) */}
-      <div className="p-4 bg-[#161925] flex items-center justify-between border-b border-white/5 shadow-2xl z-10">
+    <div className="fixed inset-0 z-[999] bg-[#1a1c2e] flex flex-col font-sans">
+      {/* HEADER DU SALON */}
+      <div className="p-4 bg-[#111321] flex items-center justify-between border-b border-white/5 shadow-xl z-10">
         <button 
           onClick={handleExit} 
-          className="px-4 py-2 bg-white/10 text-white rounded-xl flex items-center gap-2 hover:bg-red-500 transition-all font-bold text-xs"
+          className="px-5 py-2.5 bg-white/5 text-white rounded-2xl flex items-center gap-2 hover:bg-red-600 transition-all font-bold text-xs border border-white/10"
         >
           <ArrowLeft size={18}/> Quitter la réunion
         </button>
         
-        <div className="flex flex-col items-center">
-            <h2 className="text-emerald-400 font-bold tracking-wide text-sm sm:text-base">
+        <div className="text-center">
+            <h2 className="text-emerald-400 font-bold text-sm sm:text-base tracking-wide">
               Salon vocal ADC
             </h2>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-[0.2em]">En direct</p>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic">En direct</p>
         </div>
         
-        <div className="hidden sm:block w-32"></div>
+        <div className="hidden sm:block w-32"></div> {/* Équilibre visuel */}
       </div>
       
-      {/* CHARGEMENT */}
-      {isInitializing && (
-        <div className="absolute inset-0 bg-[#1c1f2e] z-20 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="animate-spin text-emerald-500" size={40} />
-            <p className="text-white/50 font-medium text-sm">Connexion au salon vocal...</p>
+      {/* ÉCRAN DE CHARGEMENT */}
+      {loading && (
+        <div className="absolute inset-0 bg-[#1a1c2e] z-20 flex flex-col items-center justify-center gap-4">
+            <Loader2 className="animate-spin text-emerald-500" size={48} />
+            <p className="text-emerald-500/50 font-bold text-xs uppercase tracking-widest tracking-tighter">Connexion au flux audio...</p>
         </div>
       )}
 
-      {/* ZONE AUDIO */}
+      {/* ZONE DE RENDU ZEGO CLOUD */}
       <div ref={roomContainer} className="flex-1 w-full h-full" />
     </div>
   );
