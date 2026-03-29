@@ -7,14 +7,17 @@ export default function AudioRoom() {
   const { id } = useParams();
   const navigate = useNavigate();
   const roomContainer = useRef<HTMLDivElement>(null);
+  
+  // 🔥 CORRECTION DU BUG CONSOLE : Empêche le double-chargement du micro
+  const isJoined = useRef(false); 
 
-  // Récupération de l'utilisateur et vérification de ses droits
   const userStr = localStorage.getItem('adc_user');
   const user = userStr ? JSON.parse(userStr) : null;
   const canManage = user?.role === 'admin' || user?.role === 'chef';
 
   useEffect(() => {
-    if (!roomContainer.current || !user) return;
+    if (!roomContainer.current || !user || isJoined.current) return;
+    isJoined.current = true;
 
     const startMeeting = async (element: HTMLDivElement) => {
       const appID = Number(import.meta.env.VITE_ZEGO_APP_ID);
@@ -37,34 +40,30 @@ export default function AudioRoom() {
 
       const zp = ZegoUIKitPrebuilt.create(kitToken);
 
-      // 🔥 C'EST ICI QUE TOUT CHANGE : L'ATTRIBUTION DES RÔLES
-      // Si Admin ou Chef -> Hôte (Pouvoirs max)
-      // Si Membre -> Auditeur (Doit lever la main)
+      // Attribution stricte des rôles pour forcer la "Main Levée"
       const userRole = canManage 
-        ? ZegoUIKitPrebuilt.Host 
-        : ZegoUIKitPrebuilt.Audience;
+        ? ZegoUIKitPrebuilt.Host     // L'Admin a tous les droits
+        : ZegoUIKitPrebuilt.Audience; // Le Membre est muet par défaut et doit lever la main
 
       zp.joinRoom({
         container: element,
+        
+        // 🔥 CORRECTION DES PHOTOS : On envoie l'URL de la photo ADC
+        userAvatarUrl: user.photo_url || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=10b981&color=fff`,
+        
         scenario: {
           mode: ZegoUIKitPrebuilt.LiveAudioRoom,
           config: {
-            role: userRole, // Application du rôle
+            role: userRole,
           },
         },
-        // Super-pouvoirs pour l'Admin/Chef :
-        showTurnOffRemoteCameraButton: canManage, 
-        showTurnOffRemoteMicrophoneButton: canManage, // Droit de couper le micro des autres
-        showRemoveUserButton: canManage, // Droit d'expulser
         
-        // Configuration de base du salon
+        // Droits exclusifs Admin / Chef
+        showTurnOffRemoteMicrophoneButton: canManage, 
+        showRemoveUserButton: canManage,
+        
         showPreJoinView: false,
-        turnOnCameraWhenJoining: false,
-        showMyCameraToggleButton: false,
-        showAudioVideoSettingsButton: true,
-        showScreenSharingButton: false,
         showUserList: true,
-        maxUsers: 50,
         onLeaveRoom: () => {
           navigate(`/meetings/${id}`);
         },
@@ -72,7 +71,12 @@ export default function AudioRoom() {
     };
 
     startMeeting(roomContainer.current);
-  },[id, user, navigate, canManage]);
+
+    // Nettoyage quand on quitte la page
+    return () => {
+      isJoined.current = false;
+    };
+  }, [id, user, navigate, canManage]);
 
   if (!user) return <div>Accès refusé</div>;
 
@@ -80,7 +84,7 @@ export default function AudioRoom() {
     <div className="fixed inset-0 z-[999] bg-slate-900 flex flex-col font-sans">
       <div className="p-4 bg-slate-800 flex items-center justify-between border-b border-slate-700 shadow-xl z-10">
         <button onClick={() => navigate(`/meetings/${id}`)} className="px-4 py-2.5 bg-slate-700 text-white rounded-xl flex items-center gap-2 hover:bg-red-500 transition-all font-black text-[10px] uppercase tracking-widest shadow-md">
-          <ArrowLeft size={16}/> Quitter la réunion
+          <ArrowLeft size={16}/> Quitter
         </button>
         <h2 className="text-emerald-400 font-black tracking-[0.2em] uppercase text-xs sm:text-sm">
           SALON VOCAL ADC
