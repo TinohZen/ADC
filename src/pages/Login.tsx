@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Lock, LogIn } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
@@ -30,12 +29,10 @@ export default function Login() {
       if (data.user.status === 'pending') throw new Error('Votre compte est en attente de validation par un administrateur.');
       if (data.user.status === 'rejected') throw new Error('Votre compte a été refusé.');
 
-      // 👉 NOUVEAU : On sauvegarde le token ET les infos utilisateur
       localStorage.setItem('adc_token', data.token); 
       localStorage.setItem('adc_user', JSON.stringify(data.user));
       navigate('/dashboard');
-    }
-     catch (err: any) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -51,18 +48,17 @@ export default function Login() {
         className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100"
       >
         <div className="text-center mb-8">
-        <img 
+          <img 
             src="/logoADC.png" 
             alt="ADC Logo" 
             className="w-32 h-32 mx-auto mb-4 object-contain"
             onError={(e) => {
-              // Fallback if image not found
               e.currentTarget.style.display = 'none';
               const fallback = document.getElementById('logo-fallback');
               if (fallback) fallback.style.display = 'flex';
             }}
           />
-          <div id="logo-fallback" className="hidden w-16 h-16 bg-emerald-600 text-white rounded-2xl items-center justify-center font-bold text-2xl mx-auto mb-5 shadow-lg shadow-emerald-600/20 rotate-3 hover:rotate-0 transition-transform">
+          <div id="logo-fallback" className="hidden w-16 h-16 bg-emerald-600 text-white rounded-2xl items-center justify-center font-bold text-2xl mx-auto mb-5 shadow-lg shadow-emerald-600/20 rotate-3">
             ADC
           </div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Bienvenue</h1>
@@ -94,41 +90,35 @@ export default function Login() {
           </div>
 
           <div>
-  <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
-  <div className="relative group">
-    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-      <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-    </div>
-    
-    <input
-      type={showPassword ? "text" : "password"}
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      /* J'ai changé pr-4 en pr-12 pour laisser de la place à l'icône de l'œil */
-      className="block w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-      placeholder="••••••••"
-      required
-    />
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+              </div>
+              
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                placeholder="••••••••"
+                required
+              />
 
-    {/* Bouton pour afficher/masquer */}
-    <button
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none"
-    >
-      {showPassword ? (
-        <EyeOff className="h-5 w-5" />
-      ) : (
-        <Eye className="h-5 w-5" />
-      )}
-    </button>
-  </div>
-</div>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+            className="w-full flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed mt-2 cursor-pointer"
           >
             {loading ? 'Connexion en cours...' : (
               <>
