@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -195,83 +195,66 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-8 pb-20 font-sans">
-      {/* STYLE SPÉCIFIQUE D'IMPRESSION HAUTE DÉFINITION */}
+    <div className="space-y-6 sm:space-y-8 pb-10 font-sans">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          #print-section, #print-section * {
-            visibility: visible;
-          }
-          #print-section {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          .print-badge-grid {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            justify-content: center !important;
-            gap: 15mm !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 10mm;
-          }
+          body * { visibility: hidden; }
+          #print-section, #print-section * { visibility: visible; }
+          #print-section { position: absolute; left: 0; top: 0; width: 100%; background: white !important; }
+          .print-badge-grid { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 10mm !important; }
+          @page { size: A4 portrait; margin: 10mm; }
         }
       `}</style>
 
-      {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
-        <div className="text-center md:text-left">
-          <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">{dashboardTitle}</h2>
-          <p className="text-emerald-600 font-bold text-xs uppercase tracking-[0.3em] mt-1">Gestion Nationale</p>
+      {/* HEADER AVEC TYPOGRAPHIE ET BOUTONS ADAPTATIFS */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
+        <div>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight uppercase">
+            {dashboardTitle}
+          </h2>
+          <p className="text-emerald-600 font-bold text-[10px] sm:text-xs uppercase tracking-[0.2em] mt-0.5">
+            Gestion Nationale
+          </p>
         </div>
         
-        {/* SÉLECTEUR D'ONGLETS À 3 BOUTONS */}
-        <div className="flex bg-white p-2 rounded-3xl shadow-xl border border-slate-100">
+        {/* COMMUTATEUR D'ONGLETS RESPONSIVE (SCROLLABLE SANS DÉBORDEMENT) */}
+        <div className="bg-white p-1 sm:p-1.5 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 flex items-center gap-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('members')}
-            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'members' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'
+            className={`flex-1 sm:flex-none px-3.5 sm:px-6 py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'members' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <Users size={15} /> Membres
+            <Users size={14} /> <span className="inline">Membres</span>
           </button>
           <button
             onClick={() => setActiveTab('meetings')}
-            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'meetings' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'
+            className={`flex-1 sm:flex-none px-3.5 sm:px-6 py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'meetings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <Calendar size={15} /> Réunions
+            <Calendar size={14} /> <span className="inline">Réunions</span>
           </button>
           <button
             onClick={() => setActiveTab('badges')}
-            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'badges' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'
+            className={`flex-1 sm:flex-none px-3.5 sm:px-6 py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'badges' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <CreditCard size={15} /> Badges & Cartes
+            <CreditCard size={14} /> <span className="inline">Badges</span>
           </button>
         </div>
       </div>
 
-      {/* STATS KPI */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 print:hidden">
-        <StatCard label="Membres" val={stats.totalMembers} color="emerald" icon={<Users />} />
-        <StatCard label="En Attente" val={stats.pendingMembers} color="amber" icon={<UserPlus />} />
-        <StatCard label="Réunions" val={stats.totalMeetings} color="blue" icon={<Calendar />} />
-        <StatCard label="Présence" val={`${stats.averageAttendance}%`} color="purple" icon={<TrendingUp />} />
+      {/* STATS KPI : GRILLE 2 COLONNES SUR MOBILE, 4 SUR PC */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 print:hidden">
+        <StatCard label="Membres" val={stats.totalMembers} color="emerald" icon={<Users size={20} />} />
+        <StatCard label="En Attente" val={stats.pendingMembers} color="amber" icon={<UserPlus size={20} />} />
+        <StatCard label="Réunions" val={stats.totalMeetings} color="blue" icon={<Calendar size={20} />} />
+        <StatCard label="Présence" val={`${stats.averageAttendance}%`} color="purple" icon={<TrendingUp size={20} />} />
       </div>
 
-      {/* FILTRES DYNAMIQUES SYLOB SELON L'ONGLET */}
+      {/* PANNEAU SYLOB ULTRA-RESPONSIVE */}
       <div className="print:hidden">
         {activeTab === 'members' && (
           <SylobFilterBuilder
@@ -314,56 +297,64 @@ export default function AdminDashboard() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20 print:hidden">
-          <Loader2 size={40} className="animate-spin text-emerald-500" />
+        <div className="flex justify-center py-16 print:hidden">
+          <Loader2 size={36} className="animate-spin text-emerald-500" />
         </div>
       ) : activeTab === 'members' ? (
-        /* ==================== ONGLET MEMBRES ==================== */
-        <div className="space-y-6 print:hidden">
+        /* ==================== MEMBRES : CARTES TACTILES ==================== */
+        <div className="space-y-4 sm:space-y-6 print:hidden">
           <div className="relative group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={20} />
+            <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500" size={18} />
             <input
               type="text"
               placeholder="Recherche rapide nom, téléphone, district..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-6 py-5 bg-white rounded-[2rem] shadow-sm border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700"
+              className="w-full pl-11 sm:pl-14 pr-4 py-3.5 sm:py-4.5 bg-white rounded-2xl sm:rounded-[2rem] shadow-xs border border-slate-100 outline-none font-bold text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
 
           {displayedUsers.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-[2.5rem] border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
-              Aucun adhérent ne correspond aux critères sélectionnés.
+            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-xs sm:text-sm">
+              Aucun adhérent trouvé.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
               {displayedUsers.map((u) => (
-                <motion.div
-                  whileHover={{ y: -5 }}
-                  onClick={() => setSelectedUser(u)}
+                <div
                   key={u.id}
-                  className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 cursor-pointer hover:shadow-2xl transition-all group flex items-center gap-5"
+                  onClick={() => setSelectedUser(u)}
+                  className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] shadow-xs border border-slate-100 cursor-pointer hover:shadow-md transition-all flex items-center justify-between gap-3 active:scale-[0.99]"
                 >
-                  {u.photo_url ? (
-                    <img src={u.photo_url} className="w-16 h-16 rounded-[1.5rem] object-cover border-4 border-slate-50 shadow-md group-hover:scale-110 transition-transform" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-50 flex items-center justify-center border-4 border-white shadow-md p-3 group-hover:scale-110 transition-transform">
-                      <img src="/logoADC.png" className="w-full h-full object-contain opacity-40 grayscale" alt="ADC" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-800 text-sm leading-tight truncate uppercase">{u.first_name} {u.last_name}</h3>
-                    <div className={`text-[10px] font-bold uppercase mt-1 flex items-center gap-1 ${u.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                      {u.status === 'approved' ? 'Approuvé' : 'En attente'}
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    {u.photo_url && u.photo_url !== 'EMPTY' ? (
+                      <img src={u.photo_url} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl object-cover shrink-0 border border-slate-100" />
+                    ) : (
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0">
+                        {u.first_name?.[0]}{u.last_name?.[0]}
+                      </div>
+                    )}
+                    <div className="truncate">
+                      <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate uppercase">{u.first_name} {u.last_name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                          u.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                        }`}>
+                          {u.status === 'approved' ? 'Approuvé' : 'En attente'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-semibold truncate">{u.district || u.province}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
+
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {u.status === 'pending' && (
                       <button
                         onClick={(e) => handleStatus(u.id, 'approved', e)}
-                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm cursor-pointer"
+                        className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                        title="Valider"
                       >
-                        <Check size={16} />
+                        <Check size={15} />
                       </button>
                     )}
                     {isSuperAdmin && (
@@ -372,124 +363,103 @@ export default function AdminDashboard() {
                           e.stopPropagation();
                           setConfirmDelete({ isOpen: true, id: u.id, type: 'user' });
                         }}
-                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm cursor-pointer"
+                        className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                        title="Supprimer"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     )}
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}
         </div>
       ) : activeTab === 'meetings' ? (
-        /* ==================== ONGLET RÉUNIONS ==================== */
-        <div className="space-y-6 print:hidden">
-          <div className="flex justify-between items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+        /* ==================== RÉUNIONS ==================== */
+        <div className="space-y-4 sm:space-y-6 print:hidden">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
               <input
                 type="text"
                 placeholder="Rechercher une réunion..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-14 pr-6 py-4 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 outline-none text-xs font-bold text-slate-700"
+                className="w-full pl-10 pr-4 py-3 bg-white rounded-xl sm:rounded-2xl border border-slate-100 outline-none text-xs font-bold text-slate-700"
               />
             </div>
             <button
               onClick={() => setShowNewMeeting(true)}
-              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center gap-2 uppercase tracking-widest cursor-pointer"
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
             >
-              <Plus size={20} /> Nouvelle réunion
+              <Plus size={16} /> Nouvelle réunion
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {displayedMeetings.map((m) => {
               const s = getStatus(m.date, m.time);
               return (
-                <div key={m.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all flex flex-col">
-                  {isSuperAdmin && (
-                    <button
-                      onClick={() => setConfirmDelete({ isOpen: true, id: m.id, type: 'meeting' })}
-                      className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                  <div className="flex justify-between items-start mb-6">
-                    <h3 className="text-xl font-bold text-slate-800 line-clamp-2 pr-8">{m.title}</h3>
-                    <span className={`px-2 py-1 text-[10px] font-bold text-white rounded-md whitespace-nowrap mt-1 ${s.color}`}>{s.label}</span>
+                <div key={m.id} className="bg-white p-5 sm:p-7 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div>
+                    <div className="flex justify-between items-start mb-3 gap-2">
+                      <h3 className="text-base sm:text-lg font-black text-slate-800 line-clamp-2">{m.title}</h3>
+                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase text-white rounded-md shrink-0 ${s.color}`}>{s.label}</span>
+                    </div>
+                    <p className="text-slate-400 text-xs line-clamp-2 mb-4">{m.description || 'Aucune description'}</p>
                   </div>
-                  <div className="flex gap-4 mb-8 text-[10px] font-black text-slate-400 tracking-widest uppercase flex-1">
-                    <div className="flex items-center gap-1.5"><Calendar size={14} className="text-emerald-500" /> {format(new Date(m.date), 'dd/MM/yyyy')}</div>
-                    <div className="flex items-center gap-1.5"><Clock size={14} className="text-emerald-500" /> {m.time}</div>
+                  
+                  <div>
+                    <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">
+                      <span className="flex items-center gap-1"><Calendar size={13} className="text-emerald-500" /> {format(new Date(m.date), 'dd/MM/yyyy')}</span>
+                      <span className="flex items-center gap-1"><Clock size={13} className="text-emerald-500" /> {m.time}</span>
+                    </div>
+                    <Link to={`/meetings/${m.id}`} className="block w-full text-center py-3 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-xs hover:bg-emerald-600 transition-colors uppercase tracking-wider">
+                      Gérer présences
+                    </Link>
                   </div>
-                  <Link to={`/meetings/${m.id}`} className="block w-full text-center py-4 bg-slate-900 text-white rounded-2xl font-bold text-xs hover:bg-emerald-600 transition-all uppercase tracking-widest">
-                    Gérer les présences
-                  </Link>
                 </div>
               );
             })}
           </div>
         </div>
       ) : (
-        /* ==================== ONGLET BADGES (NOUVEAU) ==================== */
-        <div className="space-y-8">
-          {/* BARRE DE CONFIGURATION DE L'ACTIVITÉ / ÉVÉNEMENT */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 print:hidden">
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Tag size={22} />
+        /* ==================== BADGES ET IMPRESSION ==================== */
+        <div className="space-y-6">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 print:hidden">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <Tag size={18} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-extrabold text-slate-800 text-sm sm:text-base">Titre / Activité sur les Badges</h3>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sélectionnez ou saisissez le libellé de l'événement</p>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">Activité sur les Badges</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Titre officiel affiché</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
               <select
                 value={selectedActivity}
-                onChange={(e) => {
-                  setSelectedActivity(e.target.value);
-                  setCustomActivity('');
-                }}
-                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
+                onChange={(e) => { setSelectedActivity(e.target.value); setCustomActivity(''); }}
+                className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
               >
-                {ACTIVITY_PRESETS.map((act) => (
-                  <option key={act} value={act}>{act}</option>
-                ))}
+                {ACTIVITY_PRESETS.map((act) => <option key={act} value={act}>{act}</option>)}
               </select>
-
-              <input
-                type="text"
-                placeholder="Ou titre personnalisé..."
-                value={customActivity}
-                onChange={(e) => setCustomActivity(e.target.value)}
-                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 w-48"
-              />
 
               <button
                 onClick={handlePrintAllBadges}
-                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
               >
-                <Printer size={16} /> Imprimer les {displayedUsers.length} badges (Planche A4)
+                <Printer size={15} /> Imprimer {displayedUsers.length} badges (A4)
               </button>
             </div>
           </div>
 
-          {/* ZONE D'AFFICHAGE ET D'IMPRESSION DES BADGES */}
           <div id="print-section">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 print-badge-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 print-badge-grid">
               {(singlePrintUser ? [singlePrintUser] : displayedUsers).map((u) => (
-                <MemberBadge
-                  key={u.id}
-                  user={u}
-                  activityName={currentActivityTitle}
-                  onPrintSingle={handlePrintSingle}
-                />
+                <MemberBadge key={u.id} user={u} activityName={currentActivityTitle} onPrintSingle={handlePrintSingle} />
               ))}
             </div>
           </div>
@@ -499,20 +469,20 @@ export default function AdminDashboard() {
       {/* MODAL CRÉATION RÉUNION */}
       <AnimatePresence>
         {showNewMeeting && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md print:hidden">
-            <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl">
-              <h3 className="text-2xl font-black text-slate-800 mb-6 text-center">Nouvelle Réunion</h3>
-              <form onSubmit={handleCreateMeeting} className="space-y-4">
-                <input type="text" placeholder="Titre" value={newMeeting.title} onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold outline-none" required />
-                <textarea placeholder="Description (optionnel)" value={newMeeting.description} onChange={(e) => setNewMeeting({ ...newMeeting, description: e.target.value })} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold h-32 outline-none" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="date" value={newMeeting.date} onChange={(e) => setNewMeeting({ ...newMeeting, date: e.target.value })} className="p-4 bg-slate-50 rounded-2xl font-bold outline-none text-slate-600" required />
-                  <input type="time" value={newMeeting.time} onChange={(e) => setNewMeeting({ ...newMeeting, time: e.target.value })} className="p-4 bg-slate-50 rounded-2xl font-bold outline-none text-slate-600" required />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
+            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} className="bg-white p-6 sm:p-8 rounded-3xl w-full max-w-md shadow-xl">
+              <h3 className="text-xl font-black text-slate-800 mb-5 text-center">Nouvelle Réunion</h3>
+              <form onSubmit={handleCreateMeeting} className="space-y-3.5">
+                <input type="text" placeholder="Titre de la réunion" value={newMeeting.title} onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-emerald-500" required />
+                <textarea placeholder="Description / Ordre du jour" value={newMeeting.description} onChange={(e) => setNewMeeting({ ...newMeeting, description: e.target.value })} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs h-28 outline-none focus:border-emerald-500" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="date" value={newMeeting.date} onChange={(e) => setNewMeeting({ ...newMeeting, date: e.target.value })} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none text-slate-600" required />
+                  <input type="time" value={newMeeting.time} onChange={(e) => setNewMeeting({ ...newMeeting, time: e.target.value })} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none text-slate-600" required />
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowNewMeeting(false)} className="flex-1 p-4 bg-slate-100 rounded-2xl font-bold text-xs text-slate-500 uppercase cursor-pointer">Annuler</button>
-                  <button type="submit" disabled={actionLoading} className="flex-1 p-4 bg-emerald-600 rounded-2xl font-bold text-xs text-white shadow-lg flex justify-center gap-2 uppercase cursor-pointer">
-                    {actionLoading && <Loader2 size={16} className="animate-spin" />} Enregistrer
+                <div className="flex gap-2.5 pt-3">
+                  <button type="button" onClick={() => setShowNewMeeting(false)} className="flex-1 py-3 bg-slate-100 rounded-xl font-black text-xs text-slate-500 uppercase cursor-pointer">Annuler</button>
+                  <button type="submit" disabled={actionLoading} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase shadow-md flex justify-center items-center gap-2 cursor-pointer">
+                    {actionLoading && <Loader2 size={14} className="animate-spin" />} Enregistrer
                   </button>
                 </div>
               </form>
@@ -521,40 +491,37 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* MODAL DÉTAILS MEMBRE */}
+      {/* MODAL PROFIL ADHÉRENT (ADAPTATIF PETITS ÉCRANS) */}
       <AnimatePresence>
         {selectedUser && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md print:hidden">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg p-10 relative overflow-hidden">
-              <button onClick={() => setSelectedUser(null)} className="absolute top-8 right-8 p-3 bg-slate-50 text-slate-400 hover:text-slate-800 rounded-full transition-all cursor-pointer"><X size={24} /></button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl w-full max-w-lg p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto no-scrollbar">
+              <button onClick={() => setSelectedUser(null)} className="absolute top-5 right-5 p-2 bg-slate-100 text-slate-400 hover:text-slate-800 rounded-full transition-all cursor-pointer"><X size={18} /></button>
               
-              <div className="flex flex-col items-center mb-10 text-center">
-                {selectedUser.photo_url ? (
-                  <img src={selectedUser.photo_url} className="w-32 h-32 rounded-[2.5rem] object-cover border-4 border-emerald-50 shadow-2xl mb-6" />
+              <div className="flex flex-col items-center mb-6 text-center">
+                {selectedUser.photo_url && selectedUser.photo_url !== 'EMPTY' ? (
+                  <img src={selectedUser.photo_url} className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl object-cover border-4 border-emerald-50 shadow-md mb-3" />
                 ) : (
-                  <div className="w-32 h-32 rounded-[2.5rem] bg-emerald-50 flex items-center justify-center border-4 border-white shadow-2xl mb-6 p-6">
-                    <img src="/logoADC.png" className="w-full h-full object-contain opacity-30 grayscale" />
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-2xl mb-3">
+                    {selectedUser.first_name?.[0]}{selectedUser.last_name?.[0]}
                   </div>
                 )}
-                <h2 className="text-2xl font-bold text-slate-800 leading-tight uppercase">{selectedUser.first_name} <br /> {selectedUser.last_name}</h2>
-                <div className="mt-4 px-6 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold uppercase flex items-center gap-2">
-                  <UserCheck size={14} /> {selectedUser.status === 'approved' ? 'Membre Actif' : 'En attente'}
-                </div>
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 uppercase">{selectedUser.first_name} {selectedUser.last_name}</h2>
+                <span className="mt-1 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase">
+                  {selectedUser.role} • {selectedUser.status === 'approved' ? 'Validé' : 'En attente'}
+                </span>
               </div>
 
-              <div className="bg-slate-50 p-8 rounded-[2.5rem] grid grid-cols-2 gap-6">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl grid grid-cols-2 gap-3 sm:gap-4 text-left">
                 <DetailBox label="Province" val={selectedUser.province} />
                 <DetailBox label="Région" val={selectedUser.region} />
                 <DetailBox label="District" val={selectedUser.district} />
                 <DetailBox label="Commune" val={selectedUser.commune} />
-                <div className="col-span-2 pt-4 border-t border-slate-200">
-                  <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2 pt-2 border-t border-slate-200">
+                  <div className="grid grid-cols-2 gap-3">
                     <DetailBox label="Téléphone" val={selectedUser.phone} />
                     <DetailBox label="Email" val={selectedUser.email} />
                   </div>
-                </div>
-                <div className="col-span-2 pt-4 border-t border-slate-200">
-                  <DetailBox label="Fokontany" val={selectedUser.fokontany} />
                 </div>
               </div>
             </motion.div>
@@ -562,7 +529,7 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      <ConfirmModal isOpen={confirmDelete.isOpen} title="Supprimer ?" message="Cette action est irréversible. Voulez-vous continuer ?" confirmText="Oui, supprimer" type="danger" loading={actionLoading} onConfirm={executeDelete} onCancel={() => setConfirmDelete({ ...confirmDelete, isOpen: false })} />
+      <ConfirmModal isOpen={confirmDelete.isOpen} title="Supprimer ?" message="Cette action est irréversible." confirmText="Oui, supprimer" type="danger" loading={actionLoading} onConfirm={executeDelete} onCancel={() => setConfirmDelete({ ...confirmDelete, isOpen: false })} />
       <ConfirmModal isOpen={popup.isOpen} title={popup.title} message={popup.msg} type={popup.type} onlyConfirm onCancel={() => setPopup({ ...popup, isOpen: false })} />
     </div>
   );
@@ -570,11 +537,13 @@ export default function AdminDashboard() {
 
 function StatCard({ icon, label, val, color }: any) {
   return (
-    <div className="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6 hover:shadow-2xl transition-all">
-      <div className={`w-14 h-14 rounded-2xl bg-${color}-50 text-${color}-600 flex items-center justify-center shadow-inner`}>{icon}</div>
-      <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">{val}</h2>
+    <div className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-xs flex items-center gap-3 sm:gap-4">
+      <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-${color}-50 text-${color}-600 flex items-center justify-center shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">{label}</p>
+        <h2 className="text-base sm:text-xl font-black text-slate-800 truncate">{val}</h2>
       </div>
     </div>
   );
@@ -583,7 +552,7 @@ function StatCard({ icon, label, val, color }: any) {
 function DetailBox({ label, val }: any) {
   return (
     <div>
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wider">{label}</p>
       <p className="text-xs font-bold text-slate-700 truncate">{val || '---'}</p>
     </div>
   );
