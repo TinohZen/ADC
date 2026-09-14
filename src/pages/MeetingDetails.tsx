@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Download, Check, X, Calendar, Clock, FileText, 
   Edit3, Save, Loader2, Users, Search, CheckCircle2, XCircle, 
-  BarChart3, Info, Sparkles, MapPin 
+  BarChart3, Info, MapPin, QrCode 
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -15,6 +15,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import SylobFilterBuilder from '../components/common/SylobFilterBuilder';
 import { evaluateSylobRules } from '../utils/sylobFilterEngine';
 import { FilterFieldDef, FilterRule, MatchMode } from '../types/sylobFilter';
+import QrScannerModal from '../components/meetings/QrScannerModal';
 
 const ATTENDANCE_FILTER_FIELDS: FilterFieldDef[] = [
   { key: 'first_name', label: 'Prénom', type: 'text', category: 'Identité' },
@@ -43,6 +44,8 @@ export default function MeetingDetails() {
   const [meeting, setMeeting] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const [quickFilter, setQuickFilter] = useState<'all' | 'present' | 'absent'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -270,7 +273,6 @@ export default function MeetingDetails() {
 
   return (
     <div className="space-y-8 pb-20 font-sans max-w-7xl mx-auto">
-      {/* HEADER DE LA RÉUNION */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
@@ -297,6 +299,15 @@ export default function MeetingDetails() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {canManage && (
+            <button
+              onClick={() => setIsScannerOpen(true)}
+              className="bg-slate-900 hover:bg-emerald-600 text-white px-5 py-3 rounded-2xl text-xs font-black tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-slate-900/10 cursor-pointer"
+            >
+              <QrCode size={16} /> SCANNER LES BADGES
+            </button>
+          )}
+
           {(status.label === 'En cours' || status.label === 'À venir') && (
             <button
               onClick={() => navigate(`/meetings/${id}/room`)}
@@ -317,7 +328,6 @@ export default function MeetingDetails() {
         </div>
       </div>
 
-      {/* BANDEAU DES ONGLETS (SEGMENTED CONTROL EXECUTIVE) */}
       <div className="bg-white p-2 rounded-[2rem] border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex bg-slate-100/80 p-1.5 rounded-[1.5rem] w-full sm:w-auto overflow-x-auto gap-1">
           <button
@@ -371,11 +381,7 @@ export default function MeetingDetails() {
         </div>
       </div>
 
-      {/* CONTENU DE L'ONGLET SÉLECTIONNÉ */}
       <AnimatePresence mode="wait">
-        {/* ========================================================= */}
-        {/* ONGLET 1 : FEUILLE D'APPEL (PRÉSENCE AVEC FILTRE SYLOB) */}
-        {/* ========================================================= */}
         {activeTab === 'attendance' && (
           <motion.div
             key="tab-attendance"
@@ -518,9 +524,6 @@ export default function MeetingDetails() {
           </motion.div>
         )}
 
-        {/* ========================================================= */}
-        {/* ONGLET 2 : PROCÈS-VERBAL / COMPTE RENDU */}
-        {/* ========================================================= */}
         {activeTab === 'report' && (
           <motion.div
             key="tab-report"
@@ -571,9 +574,6 @@ export default function MeetingDetails() {
           </motion.div>
         )}
 
-        {/* ========================================================= */}
-        {/* ONGLET 3 : ANALYSE & STATISTIQUES */}
-        {/* ========================================================= */}
         {activeTab === 'analytics' && (
           <motion.div
             key="tab-analytics"
@@ -582,7 +582,6 @@ export default function MeetingDetails() {
             exit={{ opacity: 0, y: -10 }}
             className="grid grid-cols-1 lg:grid-cols-3 gap-8"
           >
-            {/* Jauge Principale */}
             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-slate-100 p-8 sm:p-10 flex flex-col items-center justify-center text-center">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Taux de participation global</span>
               
@@ -617,7 +616,6 @@ export default function MeetingDetails() {
               </div>
             </div>
 
-            {/* Répartition par Région/District */}
             <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-slate-100 p-8 sm:p-10 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-3 mb-6">
@@ -656,9 +654,6 @@ export default function MeetingDetails() {
           </motion.div>
         )}
 
-        {/* ========================================================= */}
-        {/* ONGLET 4 : INFORMATIONS & ORDRE DU JOUR */}
-        {/* ========================================================= */}
         {activeTab === 'info' && (
           <motion.div
             key="tab-info"
@@ -772,6 +767,15 @@ export default function MeetingDetails() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        attendance={attendance}
+        onMarkPresent={async (userId) => {
+          await handleUpdateAttendance(userId, 'present');
+        }}
+      />
 
       <ConfirmModal
         isOpen={popup.isOpen}

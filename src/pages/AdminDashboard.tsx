@@ -1,14 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Users, Calendar, Check, X, Plus, Trash2, Search, TrendingUp, UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck } from 'lucide-react';
+import { 
+  Users, Calendar, Check, X, Plus, Trash2, Search, TrendingUp, 
+  UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck, 
+  CreditCard, Printer, Tag, Sparkles 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 import SylobFilterBuilder from '../components/common/SylobFilterBuilder';
 import { evaluateSylobRules } from '../utils/sylobFilterEngine';
 import { FilterFieldDef, FilterRule, MatchMode } from '../types/sylobFilter';
+import MemberBadge from '../components/badges/MemberBadge';
 
 const MEMBER_FILTER_FIELDS: FilterFieldDef[] = [
   { key: 'first_name', label: 'Prénom', type: 'text', category: 'Identité' },
@@ -52,13 +57,25 @@ const MEETING_FILTER_FIELDS: FilterFieldDef[] = [
   { key: 'description', label: 'Description', type: 'text', category: 'Détails' },
 ];
 
+const ACTIVITY_PRESETS = [
+  "Carte d'Adhérent Officielle",
+  "Convention Nationale 2026",
+  "Assemblée Générale Ordinaire",
+  "Réunion Régionale des Cadres",
+  "Accréditation Sécurité / Staff",
+];
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'members' | 'meetings'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'meetings' | 'badges'>('members');
   const [users, setUsers] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [selectedActivity, setSelectedActivity] = useState(ACTIVITY_PRESETS[0]);
+  const [customActivity, setCustomActivity] = useState('');
+  const [singlePrintUser, setSinglePrintUser] = useState<any>(null);
 
   const [memberRules, setMemberRules] = useState<FilterRule[]>([]);
   const [memberMatchMode, setMemberMatchMode] = useState<MatchMode>('all');
@@ -87,8 +104,11 @@ export default function AdminDashboard() {
     try {
       const s = await (await apiFetch('/api/stats')).json();
       setStats(s);
-      if (activeTab === 'members') setUsers(await (await apiFetch('/api/users')).json());
-      else setMeetings(await (await apiFetch('/api/meetings')).json());
+      if (activeTab === 'members' || activeTab === 'badges') {
+        setUsers(await (await apiFetch('/api/users')).json());
+      } else {
+        setMeetings(await (await apiFetch('/api/meetings')).json());
+      }
     } finally {
       setLoading(false);
     }
@@ -158,70 +178,148 @@ export default function AdminDashboard() {
     return evaluateSylobRules(result, meetingRules, meetingMatchMode, MEETING_FILTER_FIELDS);
   }, [meetings, searchTerm, meetingRules, meetingMatchMode]);
 
+  const currentActivityTitle = customActivity.trim() ? customActivity.trim() : selectedActivity;
+
+  const handlePrintAllBadges = () => {
+    setSinglePrintUser(null);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintSingle = (targetUser: any) => {
+    setSinglePrintUser(targetUser);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
   return (
     <div className="space-y-8 pb-20 font-sans">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+      {/* STYLE SPÉCIFIQUE D'IMPRESSION HAUTE DÉFINITION */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #print-section, #print-section * {
+            visibility: visible;
+          }
+          #print-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .print-badge-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            gap: 15mm !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      {/* HEADER PRINCIPAL */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6 print:hidden">
         <div className="text-center md:text-left">
           <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">{dashboardTitle}</h2>
           <p className="text-emerald-600 font-bold text-xs uppercase tracking-[0.3em] mt-1">Gestion Nationale</p>
         </div>
+        
+        {/* SÉLECTEUR D'ONGLETS À 3 BOUTONS */}
         <div className="flex bg-white p-2 rounded-3xl shadow-xl border border-slate-100">
           <button
             onClick={() => setActiveTab('members')}
-            className={`px-8 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'members' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            Membres
+            <Users size={15} /> Membres
           </button>
           <button
             onClick={() => setActiveTab('meetings')}
-            className={`px-8 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'meetings' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            Réunions
+            <Calendar size={15} /> Réunions
+          </button>
+          <button
+            onClick={() => setActiveTab('badges')}
+            className={`px-7 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'badges' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'
+            }`}
+          >
+            <CreditCard size={15} /> Badges & Cartes
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* STATS KPI */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 print:hidden">
         <StatCard label="Membres" val={stats.totalMembers} color="emerald" icon={<Users />} />
         <StatCard label="En Attente" val={stats.pendingMembers} color="amber" icon={<UserPlus />} />
         <StatCard label="Réunions" val={stats.totalMeetings} color="blue" icon={<Calendar />} />
         <StatCard label="Présence" val={`${stats.averageAttendance}%`} color="purple" icon={<TrendingUp />} />
       </div>
 
-      {activeTab === 'members' ? (
-        <SylobFilterBuilder
-          fields={MEMBER_FILTER_FIELDS}
-          rules={memberRules}
-          matchMode={memberMatchMode}
-          totalCount={displayedUsers.length}
-          onApply={(rules, mode) => {
-            setMemberRules(rules);
-            setMemberMatchMode(mode);
-          }}
-        />
-      ) : (
-        <SylobFilterBuilder
-          fields={MEETING_FILTER_FIELDS}
-          rules={meetingRules}
-          matchMode={meetingMatchMode}
-          totalCount={displayedMeetings.length}
-          onApply={(rules, mode) => {
-            setMeetingRules(rules);
-            setMeetingMatchMode(mode);
-          }}
-        />
-      )}
+      {/* FILTRES DYNAMIQUES SYLOB SELON L'ONGLET */}
+      <div className="print:hidden">
+        {activeTab === 'members' && (
+          <SylobFilterBuilder
+            fields={MEMBER_FILTER_FIELDS}
+            rules={memberRules}
+            matchMode={memberMatchMode}
+            totalCount={displayedUsers.length}
+            onApply={(rules, mode) => {
+              setMemberRules(rules);
+              setMemberMatchMode(mode);
+            }}
+          />
+        )}
+
+        {activeTab === 'meetings' && (
+          <SylobFilterBuilder
+            fields={MEETING_FILTER_FIELDS}
+            rules={meetingRules}
+            matchMode={meetingMatchMode}
+            totalCount={displayedMeetings.length}
+            onApply={(rules, mode) => {
+              setMeetingRules(rules);
+              setMeetingMatchMode(mode);
+            }}
+          />
+        )}
+
+        {activeTab === 'badges' && (
+          <SylobFilterBuilder
+            fields={MEMBER_FILTER_FIELDS}
+            rules={memberRules}
+            matchMode={memberMatchMode}
+            totalCount={displayedUsers.length}
+            onApply={(rules, mode) => {
+              setMemberRules(rules);
+              setMemberMatchMode(mode);
+            }}
+          />
+        )}
+      </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
+        <div className="flex justify-center py-20 print:hidden">
           <Loader2 size={40} className="animate-spin text-emerald-500" />
         </div>
       ) : activeTab === 'members' ? (
-        <div className="space-y-6">
+        /* ==================== ONGLET MEMBRES ==================== */
+        <div className="space-y-6 print:hidden">
           <div className="relative group">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={20} />
             <input
@@ -285,8 +383,9 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="space-y-6">
+      ) : activeTab === 'meetings' ? (
+        /* ==================== ONGLET RÉUNIONS ==================== */
+        <div className="space-y-6 print:hidden">
           <div className="flex justify-between items-center">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
@@ -335,11 +434,72 @@ export default function AdminDashboard() {
             })}
           </div>
         </div>
+      ) : (
+        /* ==================== ONGLET BADGES (NOUVEAU) ==================== */
+        <div className="space-y-8">
+          {/* BARRE DE CONFIGURATION DE L'ACTIVITÉ / ÉVÉNEMENT */}
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 print:hidden">
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <Tag size={22} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-extrabold text-slate-800 text-sm sm:text-base">Titre / Activité sur les Badges</h3>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sélectionnez ou saisissez le libellé de l'événement</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <select
+                value={selectedActivity}
+                onChange={(e) => {
+                  setSelectedActivity(e.target.value);
+                  setCustomActivity('');
+                }}
+                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                {ACTIVITY_PRESETS.map((act) => (
+                  <option key={act} value={act}>{act}</option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                placeholder="Ou titre personnalisé..."
+                value={customActivity}
+                onChange={(e) => setCustomActivity(e.target.value)}
+                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 w-48"
+              />
+
+              <button
+                onClick={handlePrintAllBadges}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
+              >
+                <Printer size={16} /> Imprimer les {displayedUsers.length} badges (Planche A4)
+              </button>
+            </div>
+          </div>
+
+          {/* ZONE D'AFFICHAGE ET D'IMPRESSION DES BADGES */}
+          <div id="print-section">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 print-badge-grid">
+              {(singlePrintUser ? [singlePrintUser] : displayedUsers).map((u) => (
+                <MemberBadge
+                  key={u.id}
+                  user={u}
+                  activityName={currentActivityTitle}
+                  onPrintSingle={handlePrintSingle}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* MODAL CRÉATION RÉUNION */}
       <AnimatePresence>
         {showNewMeeting && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md print:hidden">
             <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl">
               <h3 className="text-2xl font-black text-slate-800 mb-6 text-center">Nouvelle Réunion</h3>
               <form onSubmit={handleCreateMeeting} className="space-y-4">
@@ -361,9 +521,10 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
+      {/* MODAL DÉTAILS MEMBRE */}
       <AnimatePresence>
         {selectedUser && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md print:hidden">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[3rem] shadow-2xl w-full max-w-lg p-10 relative overflow-hidden">
               <button onClick={() => setSelectedUser(null)} className="absolute top-8 right-8 p-3 bg-slate-50 text-slate-400 hover:text-slate-800 rounded-full transition-all cursor-pointer"><X size={24} /></button>
               
