@@ -316,9 +316,12 @@ app.put(
 
 app.get("/api/stats", authenticateToken, async (req, res) => {
   try {
-    const members = await pool.query(
-      "SELECT COUNT(*) FROM users WHERE role = 'member'"
-    );
+    // const members = await pool.query(
+    //   "SELECT COUNT(*) FROM users WHERE role = 'member'"
+    // );
+
+    const members = await pool.query("SELECT COUNT(*) FROM users");
+    
     const pending = await pool.query(
       "SELECT COUNT(*) FROM users WHERE status = 'pending'"
     );
