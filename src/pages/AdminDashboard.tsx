@@ -5,7 +5,7 @@ import { fr } from 'date-fns/locale';
 import { 
   Users, Calendar, Check, X, Plus, Trash2, Search, TrendingUp, 
   UserPlus, MapPin, Mail, Phone, Clock, Loader2, UserCheck, 
-  CreditCard, Printer, Tag, Sparkles 
+  CreditCard, Printer, Tag, ShieldAlert 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/apiFetch';
@@ -65,8 +65,8 @@ const ACTIVITY_PRESETS = [
   "Accréditation Sécurité / Staff",
 ];
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'members' | 'meetings' | 'badges'>('members');
+export default function AdminDashboard({ initialTab }: { initialTab?: 'members' | 'meetings' | 'badges' }) {
+  const [activeTab, setActiveTab] = useState<'members' | 'meetings' | 'badges'>(initialTab || 'members');
   const [users, setUsers] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ totalMembers: 0, pendingMembers: 0, totalMeetings: 0, averageAttendance: 0 });
@@ -87,6 +87,8 @@ export default function AdminDashboard() {
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: 0, type: 'user' as any });
   const [popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
   const [actionLoading, setActionLoading] = useState(false);
+  const [roleUpdating, setRoleUpdating] = useState(false);
+
   const [showNewMeeting, setShowNewMeeting] = useState(false);
   const [newMeeting, setNewMeeting] = useState({ title: '', description: '', date: '', time: '' });
 
@@ -94,6 +96,10 @@ export default function AdminDashboard() {
   const currentUser = userStr ? JSON.parse(userStr) : null;
   const isSuperAdmin = currentUser?.role === 'admin';
   const dashboardTitle = currentUser?.role === 'chef' ? 'ADC Chef' : 'ADC Admin';
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     fetchData();
@@ -122,11 +128,31 @@ export default function AdminDashboard() {
     return { label: 'Passée', color: 'bg-slate-400' };
   };
 
-  const handleStatus = async (id: number, status: string, e: any) => {
-    e.stopPropagation();
+  const handleStatus = async (id: number, status: string, e?: any) => {
+    if (e) e.stopPropagation();
     await apiFetch(`/api/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
     setPopup({ isOpen: true, title: 'Mis à jour', msg: 'Le statut a été modifié.', type: 'success' });
     fetchData();
+  };
+
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    if (!isSuperAdmin) return;
+    setRoleUpdating(true);
+    try {
+      const res = await apiFetch(`/api/users/${userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) throw new Error();
+      
+      setSelectedUser((prev: any) => prev ? { ...prev, role: newRole } : null);
+      setPopup({ isOpen: true, title: 'Rôle Modifié', msg: `Le rôle a été changé en ${newRole.toUpperCase()}.`, type: 'success' });
+      fetchData();
+    } catch {
+      setPopup({ isOpen: true, title: 'Erreur', msg: 'Impossible de modifier le rôle.', type: 'danger' });
+    } finally {
+      setRoleUpdating(false);
+    }
   };
 
   const executeDelete = async () => {
@@ -182,16 +208,12 @@ export default function AdminDashboard() {
 
   const handlePrintAllBadges = () => {
     setSinglePrintUser(null);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setTimeout(() => { window.print(); }, 150);
   };
 
   const handlePrintSingle = (targetUser: any) => {
     setSinglePrintUser(targetUser);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setTimeout(() => { window.print(); }, 150);
   };
 
   return (
@@ -206,7 +228,7 @@ export default function AdminDashboard() {
         }
       `}</style>
 
-      {/* HEADER AVEC TYPOGRAPHIE ET BOUTONS ADAPTATIFS */}
+      {/* HEADER PRINCIPAL */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight uppercase">
@@ -217,7 +239,6 @@ export default function AdminDashboard() {
           </p>
         </div>
         
-        {/* COMMUTATEUR D'ONGLETS RESPONSIVE (SCROLLABLE SANS DÉBORDEMENT) */}
         <div className="bg-white p-1 sm:p-1.5 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 flex items-center gap-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('members')}
@@ -225,7 +246,7 @@ export default function AdminDashboard() {
               activeTab === 'members' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <Users size={14} /> <span className="inline">Membres</span>
+            <Users size={14} /> Membres
           </button>
           <button
             onClick={() => setActiveTab('meetings')}
@@ -233,7 +254,7 @@ export default function AdminDashboard() {
               activeTab === 'meetings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <Calendar size={14} /> <span className="inline">Réunions</span>
+            <Calendar size={14} /> Réunions
           </button>
           <button
             onClick={() => setActiveTab('badges')}
@@ -241,12 +262,12 @@ export default function AdminDashboard() {
               activeTab === 'badges' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'
             }`}
           >
-            <CreditCard size={14} /> <span className="inline">Badges</span>
+            <CreditCard size={14} /> Badges
           </button>
         </div>
       </div>
 
-      {/* STATS KPI : GRILLE 2 COLONNES SUR MOBILE, 4 SUR PC */}
+      {/* STATS KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 print:hidden">
         <StatCard label="Membres" val={stats.totalMembers} color="emerald" icon={<Users size={20} />} />
         <StatCard label="En Attente" val={stats.pendingMembers} color="amber" icon={<UserPlus size={20} />} />
@@ -254,7 +275,7 @@ export default function AdminDashboard() {
         <StatCard label="Présence" val={`${stats.averageAttendance}%`} color="purple" icon={<TrendingUp size={20} />} />
       </div>
 
-      {/* PANNEAU SYLOB ULTRA-RESPONSIVE */}
+      {/* FILTRES SYLOB */}
       <div className="print:hidden">
         {activeTab === 'members' && (
           <SylobFilterBuilder
@@ -301,7 +322,6 @@ export default function AdminDashboard() {
           <Loader2 size={36} className="animate-spin text-emerald-500" />
         </div>
       ) : activeTab === 'members' ? (
-        /* ==================== MEMBRES : CARTES TACTILES ==================== */
         <div className="space-y-4 sm:space-y-6 print:hidden">
           <div className="relative group">
             <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500" size={18} />
@@ -338,9 +358,11 @@ export default function AdminDashboard() {
                       <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate uppercase">{u.first_name} {u.last_name}</h3>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                          u.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                          u.role === 'admin' ? 'bg-rose-50 text-rose-600' :
+                          u.role === 'chef' ? 'bg-amber-50 text-amber-700' :
+                          'bg-emerald-50 text-emerald-600'
                         }`}>
-                          {u.status === 'approved' ? 'Approuvé' : 'En attente'}
+                          {u.role}
                         </span>
                         <span className="text-[10px] text-slate-400 font-semibold truncate">{u.district || u.province}</span>
                       </div>
@@ -376,7 +398,7 @@ export default function AdminDashboard() {
           )}
         </div>
       ) : activeTab === 'meetings' ? (
-        /* ==================== RÉUNIONS ==================== */
+        /* ==================== RÉUNIONS AVEC BOUTON SUPPRIMER TOUJOURS VISIBLE ==================== */
         <div className="space-y-4 sm:space-y-6 print:hidden">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
             <div className="relative flex-1">
@@ -405,7 +427,22 @@ export default function AdminDashboard() {
                   <div>
                     <div className="flex justify-between items-start mb-3 gap-2">
                       <h3 className="text-base sm:text-lg font-black text-slate-800 line-clamp-2">{m.title}</h3>
-                      <span className={`px-2 py-0.5 text-[9px] font-black uppercase text-white rounded-md shrink-0 ${s.color}`}>{s.label}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-2 py-0.5 text-[9px] font-black uppercase text-white rounded-md ${s.color}`}>{s.label}</span>
+                        {/* BOUTON SUPPRIMER RÉUNION PERMANENT ET CLIQUEABLE */}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ isOpen: true, id: m.id, type: 'meeting' });
+                            }}
+                            className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                            title="Supprimer la réunion"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <p className="text-slate-400 text-xs line-clamp-2 mb-4">{m.description || 'Aucune description'}</p>
                   </div>
@@ -434,7 +471,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">Activité sur les Badges</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Titre officiel affiché</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Titre officiel imprimé</p>
               </div>
             </div>
 
@@ -491,7 +528,7 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* MODAL PROFIL ADHÉRENT (ADAPTATIF PETITS ÉCRANS) */}
+      {/* MODAL PROFIL ADHÉRENT AVEC CHANGEMENT DE RÔLE HIÉRARCHIQUE */}
       <AnimatePresence>
         {selectedUser && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
@@ -507,10 +544,35 @@ export default function AdminDashboard() {
                   </div>
                 )}
                 <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 uppercase">{selectedUser.first_name} {selectedUser.last_name}</h2>
-                <span className="mt-1 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase">
-                  {selectedUser.role} • {selectedUser.status === 'approved' ? 'Validé' : 'En attente'}
+                <span className={`mt-1 px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                  selectedUser.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  {selectedUser.status === 'approved' ? 'Compte Validé' : 'En attente'}
                 </span>
               </div>
+
+              {/* BOÎTE D'ATTRIBUTION DU RÔLE (ADMIN SEULEMENT) */}
+              {isSuperAdmin && (
+                <div className="bg-emerald-50/70 border border-emerald-200/80 p-4 rounded-2xl mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                      <ShieldAlert size={14} className="text-emerald-600" />
+                      Modifier le Rôle Hiérarchique
+                    </span>
+                    {roleUpdating && <Loader2 size={13} className="animate-spin text-emerald-600" />}
+                  </div>
+                  <select
+                    value={selectedUser.role}
+                    disabled={roleUpdating}
+                    onChange={(e) => handleRoleChange(selectedUser.id, e.target.value)}
+                    className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="member">Membre Simple</option>
+                    <option value="chef">Chef de Fil (Gestionnaire Régional)</option>
+                    <option value="admin">Administrateur Principal</option>
+                  </select>
+                </div>
+              )}
 
               <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl grid grid-cols-2 gap-3 sm:gap-4 text-left">
                 <DetailBox label="Province" val={selectedUser.province} />

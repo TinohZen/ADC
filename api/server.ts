@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -21,7 +22,6 @@ const supabase = createClient(
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-// AUTORISATION MULTI-PLATEFORME (CORS POUR ANDROID / IOS CAPACITOR)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -79,6 +79,86 @@ async function uploadPhoto(base64Str: string, userId: string | number): Promise<
   const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
   return data.publicUrl;
 }
+
+app.post("/api/forgot-password", async (req, res) => {
+  const { phone, email } = req.body;
+  try {
+    const userRes = await pool.query(
+      "SELECT * FROM users WHERE phone = $1 AND LOWER(TRIM(email)) = LOWER(TRIM($2))",
+      [phone.trim(), email.trim()]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: "Aucun compte ne correspond à ce numéro et cet email" });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      "UPDATE users SET reset_code = $1, reset_expires_at = $2 WHERE id = $3",
+      [code, expires, userRes.rows[0].id]
+    );
+
+    const hasSmtp = Boolean(process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD);
+
+    if (hasSmtp) {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD,
+          },
+        });
+
+        await transporter.sendMail({
+          from: `"ADC Madagascar" <${process.env.SMTP_EMAIL}>`,
+          to: email.trim(),
+          subject: "Code de vérification - Réinitialisation ADC",
+          text: `Bonjour,\n\nVotre code de réinitialisation est : ${code}\nCe code expire dans 15 minutes.\n\nADC Madagascar`,
+        });
+
+        return res.json({ success: true, message: "Code envoyé par email avec succès !" });
+      } catch (mailError) {
+        console.warn("Erreur SMTP, bascule en mode secours:", mailError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Code de validation généré : ${code}`,
+      code: code,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/reset-password", async (req, res) => {
+  const { phone, code, newPassword } = req.body;
+  try {
+    const userRes = await pool.query(
+      "SELECT * FROM users WHERE phone = $1 AND reset_code = $2 AND (reset_expires_at > NOW() OR reset_expires_at IS NULL)",
+      [phone.trim(), code.trim()]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({ error: "Code de vérification invalide ou expiré" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      "UPDATE users SET password = $1, reset_code = NULL, reset_expires_at = NULL WHERE id = $2",
+      [hashedPassword, userRes.rows[0].id]
+    );
+
+    res.json({ success: true, message: "Mot de passe mis à jour avec succès" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.post("/api/register", async (req, res) => {
   const { first_name, last_name, phone, email, photo_url, password, province, region, district, commune, fokontany } = req.body;
@@ -150,6 +230,22 @@ app.get("/api/users", authenticateToken, async (req, res) => {
   try {
     const users = await pool.query("SELECT * FROM users ORDER BY created_at DESC");
     res.json(users.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/users/:id/role", authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!['member', 'chef', 'admin'].includes(role)) {
+    return res.status(400).json({ error: "Rôle invalide" });
+  }
+
+  try {
+    await pool.query("UPDATE users SET role = $1 WHERE id = $2", [role, id]);
+    res.json({ success: true, role });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

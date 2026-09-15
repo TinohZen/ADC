@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LogOut, User, LayoutDashboard, Calendar, CreditCard, UserCheck } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Calendar, UserCheck } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 
 export default function Layout() {
@@ -12,13 +12,12 @@ export default function Layout() {
   if (!userStr) return <Navigate to="/login" replace />;
   const user = JSON.parse(userStr);
 
-  const isCurrent = (path: string) => location.pathname === path;
+  const isCurrent = (path: string) => location.pathname === path && !location.search;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-20 sm:pb-0">
-      {/* HEADER HAUT (ADAPTATIF PC / TABLETTE / MOBILE) */}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-slate-100 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 lg:px-8 transition-all">
-        <div className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none" onClick={() => navigate('/')}>
+        <div className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none" onClick={() => navigate('/dashboard')}>
           <img 
             src="/logoADC.png" 
             alt="ADC" 
@@ -68,17 +67,16 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* CONTENU PRINCIPAL AVEC PADDING FLUIDE */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3.5 sm:p-6 lg:p-8 transition-all">
         <Outlet />
       </main>
 
-      {/* BARRE DE NAVIGATION MOBILE FLOTTANTE (STYLE IONIC / IOS) - VISIBLE UNIQUEMENT SUR MOBILE */}
+      {/* NAVIGATION BASSE MOBILE */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-t border-slate-200/80 px-4 py-2 flex items-center justify-around shadow-2xl">
         <button
           onClick={() => navigate('/dashboard')}
           className={`flex flex-col items-center gap-0.5 p-1.5 transition-all cursor-pointer ${
-            isCurrent('/dashboard') || isCurrent('/') ? 'text-emerald-600 scale-105' : 'text-slate-400 hover:text-slate-600'
+            isCurrent('/dashboard') || isCurrent('/') ? 'text-emerald-600 scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <LayoutDashboard size={19} />
@@ -86,8 +84,10 @@ export default function Layout() {
         </button>
 
         <button
-          onClick={() => navigate('/dashboard')}
-          className="flex flex-col items-center gap-0.5 p-1.5 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+          onClick={() => navigate('/dashboard?tab=meetings')}
+          className={`flex flex-col items-center gap-0.5 p-1.5 transition-all cursor-pointer ${
+            location.search.includes('tab=meetings') ? 'text-emerald-600 scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
+          }`}
         >
           <Calendar size={19} />
           <span className="text-[9px] font-black uppercase tracking-wider">Réunions</span>
@@ -96,7 +96,7 @@ export default function Layout() {
         <button
           onClick={() => navigate('/profile')}
           className={`flex flex-col items-center gap-0.5 p-1.5 transition-all cursor-pointer ${
-            isCurrent('/profile') ? 'text-emerald-600 scale-105' : 'text-slate-400 hover:text-slate-600'
+            isCurrent('/profile') ? 'text-emerald-600 scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
           <UserCheck size={19} />
