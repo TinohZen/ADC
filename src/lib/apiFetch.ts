@@ -1,5 +1,10 @@
+import { Capacitor } from '@capacitor/core';
+
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 300000; // 5 minutes de validité
+const CACHE_TTL = 300000;
+
+// URL de ton backend de production pour l'application mobile
+const PROD_API_URL = 'https://adc-reunion.vercel.app';
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem("adc_token");
@@ -11,13 +16,16 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
 
   const isGet = !options.method || options.method.toUpperCase() === "GET";
-
-  // Invalidation du cache lors des modifications (POST, PUT, DELETE)
   if (!isGet) {
     cache.clear();
   }
 
-  const response = await fetch(url, {
+  // Si on est sur smartphone Android, on préfixe avec l'URL cloud Vercel
+  const targetUrl = Capacitor.isNativePlatform() && url.startsWith('/api')
+    ? `${PROD_API_URL}${url}`
+    : url;
+
+  const response = await fetch(targetUrl, {
     ...options,
     headers,
   });
@@ -36,7 +44,6 @@ export async function cachedApiFetch<T>(url: string): Promise<T> {
   const cached = cache.get(url);
   const now = Date.now();
 
-  // Si en cache, on retourne immédiatement
   if (cached && now - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }

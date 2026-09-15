@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { apiFetch } from '../lib/apiFetch';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
@@ -17,9 +18,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/login', {
+      const res = await apiFetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password }),
       });
 
@@ -51,7 +51,7 @@ export default function Login() {
           <img 
             src="/logoADC.png" 
             alt="ADC Logo" 
-            className="w-32 h-32 mx-auto mb-4 object-contain"
+            className="w-28 h-28 mx-auto mb-3 object-contain"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               const fallback = document.getElementById('logo-fallback');
@@ -61,28 +61,28 @@ export default function Login() {
           <div id="logo-fallback" className="hidden w-16 h-16 bg-emerald-600 text-white rounded-2xl items-center justify-center font-bold text-2xl mx-auto mb-5 shadow-lg shadow-emerald-600/20 rotate-3">
             ADC
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Bienvenue</h1>
-          <p className="text-slate-500 mt-2 text-sm">Connectez-vous à votre espace membre</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bienvenue</h1>
+          <p className="text-slate-500 mt-1.5 text-xs sm:text-sm">Connectez-vous à votre espace membre</p>
         </div>
 
         {error && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 p-3.5 rounded-xl mb-6 text-sm flex items-center gap-2">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 p-3.5 rounded-xl mb-6 text-xs sm:text-sm flex items-center gap-2 font-bold">
             {error}
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Téléphone</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 ml-1">Téléphone</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <User className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
               </div>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="block w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                className="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-xs sm:text-sm text-slate-800"
                 placeholder="03........"
                 required
               />
@@ -90,17 +90,17 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Mot de passe</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 ml-1">Mot de passe</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <Lock className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
               </div>
               
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                className="block w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-xs sm:text-sm text-slate-800"
                 placeholder="••••••••"
                 required
               />
@@ -108,9 +108,9 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
@@ -118,20 +118,20 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed mt-2 cursor-pointer"
+            className="w-full flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-70 disabled:cursor-not-allowed mt-2 cursor-pointer active:scale-[0.99]"
           >
             {loading ? 'Connexion en cours...' : (
               <>
-                <LogIn size={20} />
+                <LogIn size={16} />
                 Se connecter
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-8 text-center text-sm text-slate-500">
+        <div className="mt-6 text-center text-xs font-bold text-slate-500">
           Pas encore membre ?{' '}
-          <Link to="/register" className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline transition-colors">
+          <Link to="/register" className="text-emerald-600 font-extrabold hover:text-emerald-700 hover:underline transition-colors">
             Créer un compte
           </Link>
         </div>
