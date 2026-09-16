@@ -22,6 +22,7 @@ const supabase = createClient(
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+// AUTORISATION MULTI-PLATEFORME (CORS)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -80,6 +81,9 @@ async function uploadPhoto(base64Str: string, userId: string | number): Promise<
   return data.publicUrl;
 }
 
+// ---------------------------------------------------------
+// ROUTES AUTHENTIFICATION ET MOT DE PASSE
+// ---------------------------------------------------------
 app.post("/api/forgot-password", async (req, res) => {
   const { phone, email } = req.body;
   try {
@@ -93,7 +97,7 @@ app.post("/api/forgot-password", async (req, res) => {
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // Valide 15 minutes
 
     await pool.query(
       "UPDATE users SET reset_code = $1, reset_expires_at = $2 WHERE id = $3",
@@ -106,10 +110,7 @@ app.post("/api/forgot-password", async (req, res) => {
       try {
         const transporter = nodemailer.createTransport({
           service: "gmail",
-          auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD,
-          },
+          auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD },
         });
 
         await transporter.sendMail({
@@ -121,10 +122,11 @@ app.post("/api/forgot-password", async (req, res) => {
 
         return res.json({ success: true, message: "Code envoyé par email avec succès !" });
       } catch (mailError) {
-        console.warn("Erreur SMTP, bascule en mode secours:", mailError);
+        console.warn("Erreur SMTP, bascule en mode secours");
       }
     }
 
+    // MODE SECOURS : Si l'email n'est pas configuré, on l'affiche à l'écran
     res.json({
       success: true,
       message: `Code de validation généré : ${code}`,
@@ -143,17 +145,13 @@ app.post("/api/reset-password", async (req, res) => {
       [phone.trim(), code.trim()]
     );
 
-    if (userRes.rows.length === 0) {
-      return res.status(400).json({ error: "Code de vérification invalide ou expiré" });
-    }
+    if (userRes.rows.length === 0) return res.status(400).json({ error: "Code de vérification invalide ou expiré" });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
     await pool.query(
       "UPDATE users SET password = $1, reset_code = NULL, reset_expires_at = NULL WHERE id = $2",
       [hashedPassword, userRes.rows[0].id]
     );
-
     res.json({ success: true, message: "Mot de passe mis à jour avec succès" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -182,6 +180,13 @@ app.post("/api/register", async (req, res) => {
       await pool.query("UPDATE users SET photo_url = $1 WHERE id = $2", [publicUrl, user.id]);
       user.photo_url = publicUrl;
     }
+
+    // NOTIFICATION : Prévenir les admins et chefs
+    await pool.query(
+      `INSERT INTO notifications (user_id, title, message, link) 
+       SELECT id, 'Nouvelle Demande', $1, '/dashboard' FROM users WHERE role IN ('admin', 'chef')`,
+      [`${first_name} ${last_name} (${district || region}) souhaite rejoindre l'ADC.`]
+    );
 
     delete user.password;
     res.json({ user });
@@ -226,6 +231,26 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------
+// ROUTES NOTIFICATIONS
+// ---------------------------------------------------------
+app.get("/api/notifications", authenticateToken, async (req: AuthRequest, res: any) => {
+  try {
+    const notifs = await pool.query("SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 30", [req.user.id]);
+    res.json(notifs.rows);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/notifications/:id/read", authenticateToken, async (req, res) => {
+  try {
+    await pool.query("UPDATE notifications SET is_read = true WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------
+// ROUTES UTILISATEURS & RÉUNIONS
+// ---------------------------------------------------------
 app.get("/api/users", authenticateToken, async (req, res) => {
   try {
     const users = await pool.query("SELECT * FROM users ORDER BY created_at DESC");
@@ -238,10 +263,7 @@ app.get("/api/users", authenticateToken, async (req, res) => {
 app.put("/api/users/:id/role", authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
-
-  if (!['member', 'chef', 'admin'].includes(role)) {
-    return res.status(400).json({ error: "Rôle invalide" });
-  }
+  if (!['member', 'chef', 'admin'].includes(role)) return res.status(400).json({ error: "Rôle invalide" });
 
   try {
     await pool.query("UPDATE users SET role = $1 WHERE id = $2", [role, id]);
@@ -249,6 +271,21 @@ app.put("/api/users/:id/role", authenticateToken, requireAdmin, async (req, res)
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.put("/api/users/:id/status", authenticateToken, requireAdminOrChef, async (req, res) => {
+  try {
+    await pool.query("UPDATE users SET status = $1 WHERE id = $2", [req.body.status, req.params.id]);
+    
+    // NOTIFICATION : Souhaiter la bienvenue si le compte est approuvé
+    if (req.body.status === 'approved') {
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, link) VALUES ($1, 'Compte Validé !', 'Bienvenue dans l''ADC. Votre compte est actif, vous pouvez accéder à votre carte membre.', '/profile')`,
+        [req.params.id]
+      );
+    }
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 app.put("/api/users/:id", authenticateToken, async (req: any, res: any) => {
@@ -276,9 +313,7 @@ app.put("/api/users/:id/password", authenticateToken, async (req: AuthRequest, r
   const { id } = req.params;
   const { currentPassword, newPassword } = req.body;
 
-  if (req.user.role !== "admin" && String(req.user.id) !== String(id)) {
-    return res.status(403).json({ error: "Action non autorisée" });
-  }
+  if (req.user.role !== "admin" && String(req.user.id) !== String(id)) return res.status(403).json({ error: "Action non autorisée" });
 
   try {
     const userRes = await pool.query("SELECT password FROM users WHERE id = $1", [id]);
@@ -339,7 +374,16 @@ app.post("/api/meetings", authenticateToken, requireAdminOrChef, async (req, res
       "INSERT INTO meetings (title, description, date, time) VALUES ($1, $2, $3, $4) RETURNING id",
       [title, description, date, time]
     );
-    res.json({ id: result.rows[0].id });
+    const meetingId = result.rows[0].id;
+
+    // NOTIFICATION : Prévenir tous les membres approuvés
+    await pool.query(
+      `INSERT INTO notifications (user_id, title, message, link) 
+       SELECT id, 'Nouvelle Réunion Programmée', $1, $2 FROM users WHERE status = 'approved'`,
+      [`${title} - Prévue le ${date} à ${time}.`, `/meetings/${meetingId}`]
+    );
+
+    res.json({ id: meetingId });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -402,15 +446,6 @@ app.get("/api/meetings/:id/report", authenticateToken, async (req, res) => {
 app.put("/api/meetings/:id/report", authenticateToken, requireAdminOrChef, async (req, res) => {
   try {
     await pool.query("UPDATE meetings SET report = $1 WHERE id = $2", [req.body.report, req.params.id]);
-    res.json({ success: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/users/:id/status", authenticateToken, requireAdminOrChef, async (req, res) => {
-  try {
-    await pool.query("UPDATE users SET status = $1 WHERE id = $2", [req.body.status, req.params.id]);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
