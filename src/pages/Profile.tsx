@@ -66,6 +66,20 @@ export default function Profile() {
     window.print();
   };
 
+  const handleTestPush = async () => {
+    try {
+      const res = await apiFetch('/api/test-push', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setPopup({ isOpen: true, title: 'Test Envoyé', msg: 'Vérifiez les notifications de votre téléphone !', type: 'success' });
+      } else {
+        setPopup({ isOpen: true, title: 'Erreur', msg: data.error || 'Erreur inconnue', type: 'danger' });
+      }
+    } catch (e: any) {
+      setPopup({ isOpen: true, title: 'Erreur Réseau', msg: e.message, type: 'danger' });
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20 font-sans">
       <style>{`
@@ -180,7 +194,20 @@ export default function Profile() {
 
           <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl space-y-6 flex flex-col justify-between">
             <div>
-              <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2.5 mb-6"><Key size={20} className="text-emerald-400"/> Sécurité</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2.5">
+                  <Key size={20} className="text-emerald-400"/> Sécurité
+                </h3>
+                <button 
+                  type="button"
+                  onClick={handleTestPush}
+                  className="px-4 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                  title="Envoyer une notification test sur le téléphone"
+                >
+                  Tester Push
+                </button>
+              </div>
+
               <form onSubmit={handlePass} className="space-y-4">
                 <DarkInp label="Mot de passe actuel" val={passwords.currentPassword} set={(v:any)=>setPasswords({...passwords, currentPassword:v})} />
                 <DarkInp label="Nouveau mot de passe" val={passwords.newPassword} set={(v:any)=>setPasswords({...passwords, newPassword:v})} />

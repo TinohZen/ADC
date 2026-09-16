@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { DownloadCloud, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import { motion, AnimatePresence } from 'framer-motion';
+import { DownloadCloud, CheckCircle2 } from 'lucide-react';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -13,49 +14,51 @@ import Layout from './components/Layout';
 import Profile from './pages/Profile';
 import AudioRoom from './pages/AudioRoom';
 
-// La version ACTUELLE de cette application compilée
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
+
+if (Capacitor.isNativePlatform()) {
+  CapacitorUpdater.notifyAppReady();
+}
 
 function BootLoader({ onReady }: { onReady: () => void }) {
-  const [status, setStatus] = useState('Vérification des accès...');
-  const [updateData, setUpdateData] = useState<any>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [status, setStatus] = useState('Vérification du système...');
+  const [progress, setProgress] = useState(0);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
-      try {
-        // 1. On interroge le serveur pour voir s'il y a une mise à jour
-        const res = await fetch('https://adc-reunion.vercel.app/api/version', { cache: 'no-store' });
-        const data = await res.json();
+      if (!Capacitor.isNativePlatform()) {
+        setTimeout(onReady, 1000);
+        return;
+      }
 
-        // 2. Si la version du serveur est différente de la version locale, on déclenche la MAJ
-        if (data.version !== APP_VERSION && Capacitor.isNativePlatform()) {
-          setUpdateData(data);
-          setStatus(`Version ${data.version} disponible !`);
-        } else {
-          // Lancement normal
-          setTimeout(onReady, 800);
+      try {
+        CapacitorUpdater.addListener('download', (info: any) => {
+          setIsUpdating(true);
+          setStatus('Mise à jour en cours...');
+          setProgress(Math.round(info.percent));
+        });
+
+        const versionRes = await fetch('https://adc-reunion.vercel.app/api/version', { cache: 'no-store' });
+        
+        if (versionRes && versionRes.ok) {
+          const { version, url } = await versionRes.json();
+          if (version !== APP_VERSION) {
+            // Téléchargement du code source ZIP et installation silencieuse
+            const bundle = await CapacitorUpdater.download({ url, version });
+            setStatus('Installation terminée. Redémarrage...');
+            await CapacitorUpdater.set({ id: bundle.id });
+            return;
+          }
         }
+        setTimeout(onReady, 800);
       } catch (error) {
-        // Mode hors-ligne ou erreur serveur, on lance l'app quand même
         setTimeout(onReady, 800);
       }
     };
 
     initApp();
   }, [onReady]);
-
-  const handleDownloadUpdate = () => {
-    setIsDownloading(true);
-    setStatus('Téléchargement en cours...');
-    // Redirige vers le fichier APK pour déclencher le téléchargement Android natif
-    window.location.href = updateData.url;
-    
-    setTimeout(() => {
-      setStatus('Ouvrez le fichier téléchargé pour installer.');
-      setIsDownloading(false);
-    }, 3000);
-  };
 
   return (
     <motion.div 
@@ -69,36 +72,27 @@ function BootLoader({ onReady }: { onReady: () => void }) {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative z-10 w-32 h-32 mb-8 bg-white p-2 rounded-[2.5rem] shadow-2xl shadow-emerald-500/20 flex items-center justify-center overflow-hidden"
       >
-        <img src="/logoADC.png" alt="ADC" className="w-full h-full object-contain" />
+        <img src="/logoADC.png" alt="ADC" className="w-full h-full object-contain drop-shadow-xl" />
       </motion.div>
       
       <h2 className="relative z-10 text-2xl font-black text-white tracking-tight uppercase mb-2">Devoir & Citoyen</h2>
       
       <div className="relative z-10 w-full max-w-xs mt-8">
-        {!updateData ? (
-          <div className="flex justify-center items-center gap-2 text-emerald-400">
-            <Loader2 size={16} className="animate-spin" />
-            <span className="text-xs font-black tracking-widest uppercase">{status}</span>
-          </div>
-        ) : (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-900 border border-slate-700 p-6 rounded-3xl text-center">
-            <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <DownloadCloud size={24} />
-            </div>
-            <h3 className="text-white font-black uppercase tracking-wider mb-2">Mise à jour requise</h3>
-            <p className="text-slate-400 text-xs font-medium mb-6">
-              {updateData.releaseNotes}
-            </p>
-            <button 
-              onClick={handleDownloadUpdate}
-              disabled={isDownloading}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-            >
-              {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-              {isDownloading ? 'Téléchargement...' : 'Mettre à jour'}
-            </button>
-          </motion.div>
-        )}
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-[10px] font-black tracking-[0.2em] text-emerald-400 uppercase flex items-center gap-2">
+            {isUpdating ? <DownloadCloud size={14} className="animate-bounce" /> : <CheckCircle2 size={14} />}
+            {status}
+          </span>
+          {isUpdating && <span className="text-xs font-bold text-white">{progress}%</span>}
+        </div>
+        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-emerald-500 rounded-full"
+            initial={{ width: '0%' }}
+            animate={{ width: isUpdating ? `${progress}%` : '100%' }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
       </div>
     </motion.div>
   );
