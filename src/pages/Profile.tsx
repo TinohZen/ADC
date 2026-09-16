@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer } from 'lucide-react';
+import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer, Smartphone, BellRing, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 import MemberBadge from '../components/badges/MemberBadge';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 const MADAGASCAR_DATA: any = {
   "Antananarivo": { "Analamanga": ["Ambohidratrimo", "Andramasina", "Anjozorobe", "Ankazobe", "Antananarivo-Atsimondrano", "Antananarivo-Avaradrano", "Antananarivo-Renivohitra", "Manjakandriana"], "Bongolava": ["Fenoarivobe", "Tsiroanomandidy"], "Itasy": ["Arivonimamo", "Miarinarivo", "Soavinandriana"], "Vakinankaratra": ["Ambatolampy", "Antanifotsy", "Antsirabe I", "Antsirabe II", "Betafo", "Faratsiho", "Mandoto"] },
@@ -27,6 +29,7 @@ export default function Profile() {
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
   const [popup, setPopup] = useState({ isOpen: false, title: '', msg: '', type: 'success' as any });
 
   const handleUpdate = async (e: any) => {
@@ -66,17 +69,107 @@ export default function Profile() {
     window.print();
   };
 
-  const handleTestPush = async () => {
-    try {
-      const res = await apiFetch('/api/test-push', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setPopup({ isOpen: true, title: 'Test Envoyé', msg: 'Vérifiez les notifications de votre téléphone !', type: 'success' });
-      } else {
-        setPopup({ isOpen: true, title: 'Erreur', msg: data.error || 'Erreur inconnue', type: 'danger' });
+  // 🚀 MOTEUR DE DIAGNOSTIC ET TEST DES NOTIFICATIONS PUSH
+  const handleDiagnosticPush = async () => {
+    setTestingPush(true);
+
+    // VÉRIFICATION 1 : Est-on sur le smartphone ou sur un navigateur PC ?
+    const isMobileNative = Capacitor.isNativePlatform();
+
+    if (!isMobileNative) {
+      // Si l'utilisateur clique sur PC
+      try {
+        const res = await apiFetch('/api/test-push', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setPopup({
+            isOpen: true,
+            title: 'Message expédié !',
+            msg: 'Le serveur a envoyé la notification à Google FCM. Vérifiez la barre de notification de votre smartphone Xiaomi !',
+            type: 'success'
+          });
+        } else {
+          setPopup({
+            isOpen: true,
+            title: 'Téléphone non lié',
+            msg: `${data.error || 'Aucun jeton trouvé'}.\n\nPour lier votre Xiaomi : ouvrez l'application SUR LE SMARTPHONE, allez dans Profil et cliquez sur "Lier ce téléphone".`,
+            type: 'danger'
+          });
+        }
+      } catch (err: any) {
+        setPopup({ isOpen: true, title: 'Erreur Réseau', msg: err.message, type: 'danger' });
+      } finally {
+        setTestingPush(false);
       }
-    } catch (e: any) {
-      setPopup({ isOpen: true, title: 'Erreur Réseau', msg: e.message, type: 'danger' });
+      return;
+    }
+
+    // SI ON EST SUR LE SMARTPHONE XIAOMI : LIAISON NATIVE FORCÉE
+    try {
+      // 1. Création du canal Android
+      await PushNotifications.createChannel({
+        id: 'adc_alerts',
+        name: 'Alertes ADC',
+        description: 'Notifications officielles de réunions et adhésions ADC',
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+      });
+
+      // 2. Demande des permissions Android
+      const perm = await PushNotifications.requestPermissions();
+      if (perm.receive !== 'granted') {
+        setPopup({
+          isOpen: true,
+          title: 'Permission Refusée',
+          msg: 'Android a bloqué les notifications. Rendez-vous dans Paramètres > Applications > ADC Présence > Notifications et cochez "Tout autoriser".',
+          type: 'danger'
+        });
+        setTestingPush(false);
+        return;
+      }
+
+      // 3. Enregistrement auprès de Google FCM
+      await PushNotifications.register();
+
+      // On écoute le jeton retourné par le système
+      const tokenListener = await PushNotifications.addListener('registration', async (token) => {
+        // Enregistrement immédiat dans la base Supabase
+        const saveRes = await apiFetch(`/api/users/${initialUser.id}/fcm-token`, {
+          method: 'PUT',
+          body: JSON.stringify({ token: token.value })
+        });
+
+        if (saveRes.ok) {
+          // Déclenchement du push de test
+          const testRes = await apiFetch('/api/test-push', { method: 'POST' });
+          const testData = await testRes.json();
+
+          if (testRes.ok && testData.success) {
+            setPopup({
+              isOpen: true,
+              title: 'Liaison Réussie !',
+              msg: 'Votre Xiaomi est désormais connecté à Firebase !\n\nAppuyez sur le bouton Accueil de votre téléphone (mettez l\'app en arrière-plan) pour voir la bannière descendre.',
+              type: 'success'
+            });
+          } else {
+            setPopup({ isOpen: true, title: 'Erreur Envoi', msg: testData.error, type: 'danger' });
+          }
+        }
+        tokenListener.remove();
+        setTestingPush(false);
+      });
+
+      // Timeout de sécurité si le listener tarde
+      setTimeout(() => {
+        if (testingPush) {
+          setTestingPush(false);
+        }
+      }, 5000);
+
+    } catch (err: any) {
+      setPopup({ isOpen: true, title: 'Erreur Native', msg: err.message, type: 'danger' });
+      setTestingPush(false);
     }
   };
 
@@ -84,12 +177,8 @@ export default function Profile() {
     <div className="max-w-6xl mx-auto space-y-8 pb-20 font-sans">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #single-badge-print, #single-badge-print * {
-            visibility: visible !important;
-          }
+          body * { visibility: hidden !important; }
+          #single-badge-print, #single-badge-print * { visibility: visible !important; }
           #single-badge-print {
             position: fixed !important;
             left: 50% !important;
@@ -100,10 +189,7 @@ export default function Profile() {
             padding: 0 !important;
             background: white !important;
           }
-          @page {
-            size: portrait;
-            margin: 0;
-          }
+          @page { size: portrait; margin: 0; }
         }
       `}</style>
 
@@ -154,7 +240,7 @@ export default function Profile() {
             <form onSubmit={handleUpdate} className="space-y-8">
               <div className="flex justify-center">
                 <label className="relative cursor-pointer group">
-                  {formData.photo_url && formData.photo_url !== 'EMPTY' ? (
+                  {formData.photo_url && formData.photo_url !== 'EMPTY' && !formData.photo_url.includes('EMPTY') ? (
                     <img src={formData.photo_url} className="w-28 h-28 rounded-3xl object-cover border-4 border-white shadow-xl group-hover:scale-105 transition-all" />
                   ) : (
                     <div className="w-28 h-28 rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-2xl border-4 border-white shadow-xl">
@@ -194,16 +280,19 @@ export default function Profile() {
 
           <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-xl space-y-6 flex flex-col justify-between">
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
                 <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2.5">
                   <Key size={20} className="text-emerald-400"/> Sécurité
                 </h3>
+
+                {/* BOUTON DIAGNOSTIC PUSH INTELLIGENT */}
                 <button 
                   type="button"
-                  onClick={handleTestPush}
-                  className="px-4 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  title="Envoyer une notification test sur le téléphone"
+                  disabled={testingPush}
+                  onClick={handleDiagnosticPush}
+                  className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
                 >
+                  {testingPush ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
                   Tester Push
                 </button>
               </div>
