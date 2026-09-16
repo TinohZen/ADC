@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer, Smartphone, BellRing, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer, BellRing, Smartphone } from 'lucide-react';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 import MemberBadge from '../components/badges/MemberBadge';
@@ -69,15 +69,14 @@ export default function Profile() {
     window.print();
   };
 
-  // 🚀 MOTEUR DE DIAGNOSTIC ET TEST DES NOTIFICATIONS PUSH
+  // 🚀 MOTEUR DE DIAGNOSTIC ET TEST DES NOTIFICATIONS PUSH (INFAILLIBLE)
   const handleDiagnosticPush = async () => {
+    if (testingPush) return;
     setTestingPush(true);
 
-    // VÉRIFICATION 1 : Est-on sur le smartphone ou sur un navigateur PC ?
     const isMobileNative = Capacitor.isNativePlatform();
 
     if (!isMobileNative) {
-      // Si l'utilisateur clique sur PC
       try {
         const res = await apiFetch('/api/test-push', { method: 'POST' });
         const data = await res.json();
@@ -85,14 +84,14 @@ export default function Profile() {
           setPopup({
             isOpen: true,
             title: 'Message expédié !',
-            msg: 'Le serveur a envoyé la notification à Google FCM. Vérifiez la barre de notification de votre smartphone Xiaomi !',
+            msg: 'Notification envoyée aux serveurs Google FCM. Vérifiez votre smartphone Xiaomi !',
             type: 'success'
           });
         } else {
           setPopup({
             isOpen: true,
-            title: 'Téléphone non lié',
-            msg: `${data.error || 'Aucun jeton trouvé'}.\n\nPour lier votre Xiaomi : ouvrez l'application SUR LE SMARTPHONE, allez dans Profil et cliquez sur "Lier ce téléphone".`,
+            title: 'Aucun téléphone lié',
+            msg: `${data.error || 'Aucun jeton trouvé'}.\n\nOuvrez l'application directement SUR votre Xiaomi pour enregistrer le téléphone.`,
             type: 'danger'
           });
         }
@@ -104,72 +103,86 @@ export default function Profile() {
       return;
     }
 
-    // SI ON EST SUR LE SMARTPHONE XIAOMI : LIAISON NATIVE FORCÉE
+    // SI ON EST SUR LE SMARTPHONE XIAOMI : ENREGISTREMENT ET TEST DIRECT
+    let finished = false;
+    const finish = (title: string, msg: string, type: 'success' | 'danger') => {
+      if (finished) return;
+      finished = true;
+      setTestingPush(false);
+      setPopup({ isOpen: true, title, msg, type });
+    };
+
+    // Timeout de sécurité : débloque le bouton après 4 secondes quoi qu'il arrive
+    const safetyTimer = setTimeout(() => {
+      if (!finished) {
+        // Si le listener n'a pas re-déclenché (jeton déjà en mémoire), on tente quand même le test serveur
+        apiFetch('/api/test-push', { method: 'POST' })
+          .then(async (res) => {
+            const data = await res.json();
+            if (res.ok && data.success) {
+              finish('Notification Expédiée !', 'Mettez l\'application en arrière-plan (appuyez sur le bouton Accueil de votre Xiaomi) pour voir la bannière descendre.', 'success');
+            } else {
+              finish('Information', data.error || 'Jeton en cours de synchronisation. Réessayez dans 5 secondes.', 'danger');
+            }
+          })
+          .catch((err) => finish('Erreur Réseau', err.message, 'danger'));
+      }
+    }, 4000);
+
     try {
-      // 1. Création du canal Android
+      // 1. Canal Android
       await PushNotifications.createChannel({
         id: 'adc_alerts',
         name: 'Alertes ADC',
-        description: 'Notifications officielles de réunions et adhésions ADC',
+        description: 'Notifications officielles ADC',
         importance: 5,
         visibility: 1,
         vibration: true,
       });
 
-      // 2. Demande des permissions Android
-      const perm = await PushNotifications.requestPermissions();
-      if (perm.receive !== 'granted') {
-        setPopup({
-          isOpen: true,
-          title: 'Permission Refusée',
-          msg: 'Android a bloqué les notifications. Rendez-vous dans Paramètres > Applications > ADC Présence > Notifications et cochez "Tout autoriser".',
-          type: 'danger'
-        });
-        setTestingPush(false);
-        return;
-      }
+      // 2. ÉCOUTEURS BRANCHÉS AVANT L'ENREGISTREMENT
+      await PushNotifications.removeAllListeners();
 
-      // 3. Enregistrement auprès de Google FCM
-      await PushNotifications.register();
-
-      // On écoute le jeton retourné par le système
-      const tokenListener = await PushNotifications.addListener('registration', async (token) => {
-        // Enregistrement immédiat dans la base Supabase
+      await PushNotifications.addListener('registration', async (token) => {
+        clearTimeout(safetyTimer);
+        // Sauvegarde du jeton dans Supabase
         const saveRes = await apiFetch(`/api/users/${initialUser.id}/fcm-token`, {
           method: 'PUT',
           body: JSON.stringify({ token: token.value })
         });
 
         if (saveRes.ok) {
-          // Déclenchement du push de test
           const testRes = await apiFetch('/api/test-push', { method: 'POST' });
           const testData = await testRes.json();
 
           if (testRes.ok && testData.success) {
-            setPopup({
-              isOpen: true,
-              title: 'Liaison Réussie !',
-              msg: 'Votre Xiaomi est désormais connecté à Firebase !\n\nAppuyez sur le bouton Accueil de votre téléphone (mettez l\'app en arrière-plan) pour voir la bannière descendre.',
-              type: 'success'
-            });
+            finish('Notification Expédiée !', 'Jeton Xiaomi synchronisé avec succès !\n\nMettez l\'application en arrière-plan (bouton Accueil de votre Xiaomi) pour voir la bannière descendre.', 'success');
           } else {
-            setPopup({ isOpen: true, title: 'Erreur Envoi', msg: testData.error, type: 'danger' });
+            finish('Erreur Envoi', testData.error || 'Erreur inconnue', 'danger');
           }
+        } else {
+          finish('Erreur Sauvegarde', 'Impossible de sauvegarder le jeton sur le serveur.', 'danger');
         }
-        tokenListener.remove();
-        setTestingPush(false);
       });
 
-      // Timeout de sécurité si le listener tarde
-      setTimeout(() => {
-        if (testingPush) {
-          setTestingPush(false);
-        }
-      }, 5000);
+      await PushNotifications.addListener('registrationError', (err) => {
+        clearTimeout(safetyTimer);
+        finish('Erreur Google FCM', err.error || 'Google Play Services indisponible.', 'danger');
+      });
+
+      // 3. Demande des permissions et enregistrement
+      const perm = await PushNotifications.requestPermissions();
+      if (perm.receive !== 'granted') {
+        clearTimeout(safetyTimer);
+        finish('Permission Refusée', 'Veuillez autoriser les notifications dans les paramètres de votre téléphone.', 'danger');
+        return;
+      }
+
+      await PushNotifications.register();
 
     } catch (err: any) {
-      setPopup({ isOpen: true, title: 'Erreur Native', msg: err.message, type: 'danger' });
-      setTestingPush(false);
+      clearTimeout(safetyTimer);
+      finish('Erreur Inattendue', err.message, 'danger');
     }
   };
 
@@ -285,15 +298,14 @@ export default function Profile() {
                   <Key size={20} className="text-emerald-400"/> Sécurité
                 </h3>
 
-                {/* BOUTON DIAGNOSTIC PUSH INTELLIGENT */}
                 <button 
                   type="button"
                   disabled={testingPush}
                   onClick={handleDiagnosticPush}
-                  className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {testingPush ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
-                  Tester Push
+                  {testingPush ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
+                  {testingPush ? 'Vérification...' : 'Tester Push'}
                 </button>
               </div>
 
