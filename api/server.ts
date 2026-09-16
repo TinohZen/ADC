@@ -6,30 +6,23 @@ import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import fs from "fs";
-
-// 🚀 Nouveaux imports modulaires Firebase
 import { initializeApp, cert } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 
 dotenv.config();
 
-// 🚀 INITIALISATION FIREBASE ADMIN (LOCAL + VERCEL CLOUD)
 let firebaseActive = false;
 try {
   let serviceAccount: any = null;
-
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
   } else if (fs.existsSync('./firebase-service-account.json')) {
     serviceAccount = JSON.parse(fs.readFileSync('./firebase-service-account.json', 'utf8'));
   }
-
   if (serviceAccount) {
     initializeApp({ credential: cert(serviceAccount) });
     firebaseActive = true;
     console.log("🔥 Firebase Admin (Push Notifications) ACTIVÉ");
-  } else {
-    console.warn("⚠️ Configuration Firebase introuvable. Push désactivé.");
   }
 } catch (e) {
   console.error("Erreur Firebase:", e);
@@ -77,14 +70,13 @@ const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   next();
 };
 
-// 🚀 2. FONCTIONS D'ENVOI PUSH (SMARTPHONE)
 async function sendPushToUser(userId: number, title: string, body: string) {
   if (!firebaseActive) return;
   try {
     const res = await pool.query("SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL", [userId]);
     const token = res.rows[0]?.fcm_token;
     if (token) await getMessaging().send({ token, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) { console.error("Erreur Push:", err); }
+  } catch (err) {}
 }
 
 async function sendPushToRole(roles: string[], title: string, body: string) {
@@ -93,7 +85,7 @@ async function sendPushToRole(roles: string[], title: string, body: string) {
     const res = await pool.query("SELECT fcm_token FROM users WHERE role = ANY($1) AND fcm_token IS NOT NULL", [roles]);
     const tokens = res.rows.map(r => r.fcm_token);
     if (tokens.length > 0) await getMessaging().sendEachForMulticast({ tokens, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) { console.error("Erreur Push Roles:", err); }
+  } catch (err) {}
 }
 
 async function sendPushToAllApproved(title: string, body: string) {
@@ -102,7 +94,7 @@ async function sendPushToAllApproved(title: string, body: string) {
     const res = await pool.query("SELECT fcm_token FROM users WHERE status = 'approved' AND fcm_token IS NOT NULL");
     const tokens = res.rows.map(r => r.fcm_token);
     if (tokens.length > 0) await getMessaging().sendEachForMulticast({ tokens, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) { console.error("Erreur Push Tous:", err); }
+  } catch (err) {}
 }
 
 async function uploadPhoto(base64Str: string, userId: string | number): Promise<string> {
@@ -117,40 +109,6 @@ async function uploadPhoto(base64Str: string, userId: string | number): Promise<
   if (error) throw error;
   return supabase.storage.from("avatars").getPublicUrl(fileName).data.publicUrl;
 }
-
-// ---------------------------------------------------------
-// AUTHENTIFICATION & MOT DE PASSE OUBLIÉ
-// ---------------------------------------------------------
-app.post("/api/forgot-password", async (req, res) => {
-  const { phone, email } = req.body;
-  try {
-    const userRes = await pool.query("SELECT * FROM users WHERE phone = $1 AND LOWER(TRIM(email)) = LOWER(TRIM($2))", [phone.trim(), email.trim()]);
-    if (userRes.rows.length === 0) return res.status(404).json({ error: "Aucun compte ne correspond" });
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
-    await pool.query("UPDATE users SET reset_code = $1, reset_expires_at = $2 WHERE id = $3", [code, expires, userRes.rows[0].id]);
-    const hasSmtp = Boolean(process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD);
-    if (hasSmtp) {
-      try {
-        const transporter = nodemailer.createTransport({ service: "gmail", auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD }});
-        await transporter.sendMail({ from: `"ADC" <${process.env.SMTP_EMAIL}>`, to: email.trim(), subject: "Code de vérification ADC", text: `Code : ${code}` });
-        return res.json({ success: true, message: "Code envoyé par email !" });
-      } catch (mailError) {}
-    }
-    res.json({ success: true, message: `Code généré : ${code}`, code: code });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
-
-app.post("/api/reset-password", async (req, res) => {
-  const { phone, code, newPassword } = req.body;
-  try {
-    const userRes = await pool.query("SELECT * FROM users WHERE phone = $1 AND reset_code = $2 AND (reset_expires_at > NOW() OR reset_expires_at IS NULL)", [phone.trim(), code.trim()]);
-    if (userRes.rows.length === 0) return res.status(400).json({ error: "Code invalide ou expiré" });
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query("UPDATE users SET password = $1, reset_code = NULL, reset_expires_at = NULL WHERE id = $2", [hashedPassword, userRes.rows[0].id]);
-    res.json({ success: true, message: "Mot de passe mis à jour" });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
 
 app.post("/api/register", async (req, res) => {
   const { first_name, last_name, phone, email, photo_url, password, province, region, district, commune, fokontany } = req.body;
@@ -170,10 +128,14 @@ app.post("/api/register", async (req, res) => {
       user.photo_url = publicUrl;
     }
     
-    const msg = `${first_name} ${last_name} (${district || region}) souhaite rejoindre l'ADC.`;
-    await pool.query(`INSERT INTO notifications (user_id, title, message, link) SELECT id, 'Nouvelle Demande', $1, '/dashboard' FROM users WHERE role IN ('admin', 'chef')`, [msg]);
+    const msg = `${first_name} ${last_name} (${district || region || 'Madagascar'}) souhaite rejoindre l'ADC.`;
+    await pool.query(
+      `INSERT INTO notifications (user_id, title, message, link) 
+       SELECT id, 'Nouvelle Demande', $1, '/dashboard' 
+       FROM users WHERE role IN ('admin', 'chef')`, 
+      [msg]
+    );
     
-    // 🚀 PUSH NOTIFICATION ADMIN & CHEF
     await sendPushToRole(['admin', 'chef'], "Nouvelle Inscription ADC", msg);
 
     delete user.password;
@@ -198,7 +160,7 @@ app.post("/api/login", async (req, res) => {
       }
     }
     if (!validPassword) return res.status(401).json({ error: "Identifiants incorrects" });
-    if (user.status === "pending") return res.status(403).json({ error: "Votre compte est en attente de validation." });
+    if (user.status === "pending") return res.status(403).json({ error: "Votre compte est en attente de validation par un administrateur." });
     if (user.status === "rejected") return res.status(403).json({ error: "Votre compte a été refusé." });
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
     delete user.password;
@@ -206,18 +168,72 @@ app.post("/api/login", async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// ROUTE : SAUVEGARDER LE TOKEN DU TÉLÉPHONE
-app.put("/api/users/:id/fcm-token", authenticateToken, async (req: AuthRequest, res: any) => {
-  if (req.user.id !== Number(req.params.id)) return res.status(403).json({ error: "Interdit" });
+// VALIDATION D'ADHÉSION + NOTIFICATION EMAIL & PUSH DU MEMBRE
+app.put("/api/users/:id/status", authenticateToken, requireAdminOrChef, async (req, res) => {
+  const { status } = req.body;
+  const { id } = req.params;
+
   try {
-    await pool.query("UPDATE users SET fcm_token = $1 WHERE id = $2", [req.body.token, req.params.id]);
+    const userRes = await pool.query("UPDATE users SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
+    const updatedUser = userRes.rows[0];
+    
+    if (status === 'approved' && updatedUser) {
+      const msg = "Félicitations ! Votre compte ADC a été approuvé. Vous pouvez dès maintenant vous connecter.";
+      
+      // 1. Notification dans la cloche du membre
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, link) VALUES ($1, 'Compte Validé !', $2, '/profile')`, 
+        [id, msg]
+      );
+      
+      // 2. Notification Push Mobile
+      await sendPushToUser(Number(id), "Adhésion ADC Validée 🎉", msg);
+
+      // 3. Email de confirmation envoyé au membre
+      if (updatedUser.email && process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
+        try {
+          const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD },
+          });
+          await transporter.sendMail({
+            from: `"ADC Madagascar" <${process.env.SMTP_EMAIL}>`,
+            to: updatedUser.email,
+            subject: "Votre adhésion à l'ADC a été validée !",
+            text: `Bonjour ${updatedUser.first_name},\n\nVotre demande d'adhésion a été acceptée par l'administration. Vous pouvez désormais vous connecter sur l'application avec votre numéro ${updatedUser.phone}.\n\nBienvenue parmi nous,\nL'équipe ADC.`,
+          });
+        } catch (e) {
+          console.warn("Erreur d'envoi email validation:", e);
+        }
+      }
+    }
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 app.get("/api/notifications", authenticateToken, async (req: AuthRequest, res: any) => {
   try {
-    const notifs = await pool.query("SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 30", [req.user.id]);
+    const notifs = await pool.query(
+      "SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 30", 
+      [req.user.id]
+    );
+
+    // Rappel automatique pour l'Admin/Chef s'il y a des demandes en attente
+    if (req.user.role === 'admin' || req.user.role === 'chef') {
+      const pendingRes = await pool.query("SELECT COUNT(*) FROM users WHERE status = 'pending'");
+      const pendingCount = parseInt(pendingRes.rows[0].count);
+      if (pendingCount > 0) {
+        notifs.rows.unshift({
+          id: `pending-reminder-${Date.now()}`,
+          title: "Demandes en attente",
+          message: `Vous avez actuellement ${pendingCount} demande(s) d'adhésion à valider.`,
+          link: "/dashboard",
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
     res.json(notifs.rows);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -225,6 +241,14 @@ app.get("/api/notifications", authenticateToken, async (req: AuthRequest, res: a
 app.put("/api/notifications/:id/read", authenticateToken, async (req, res) => {
   try {
     await pool.query("UPDATE notifications SET is_read = true WHERE id = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/users/:id/fcm-token", authenticateToken, async (req: AuthRequest, res: any) => {
+  if (req.user.id !== Number(req.params.id)) return res.status(403).json({ error: "Interdit" });
+  try {
+    await pool.query("UPDATE users SET fcm_token = $1 WHERE id = $2", [req.body.token, req.params.id]);
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -243,21 +267,6 @@ app.put("/api/users/:id/role", authenticateToken, requireAdmin, async (req, res)
   try {
     await pool.query("UPDATE users SET role = $1 WHERE id = $2", [role, id]);
     res.json({ success: true, role });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
-
-app.put("/api/users/:id/status", authenticateToken, requireAdminOrChef, async (req, res) => {
-  try {
-    await pool.query("UPDATE users SET status = $1 WHERE id = $2", [req.body.status, req.params.id]);
-    
-    if (req.body.status === 'approved') {
-      const msg = "Bienvenue dans l'ADC. Votre compte est actif, vous pouvez accéder à votre carte membre.";
-      await pool.query(`INSERT INTO notifications (user_id, title, message, link) VALUES ($1, 'Compte Validé !', $2, '/profile')`, [req.params.id, msg]);
-      
-      // 🚀 PUSH NOTIFICATION ADHÉRENT
-      await sendPushToUser(Number(req.params.id), "Compte ADC Validé ✅", msg);
-    }
-    res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -320,10 +329,7 @@ app.post("/api/meetings", authenticateToken, requireAdminOrChef, async (req, res
     const meetingId = result.rows[0].id;
     const msg = `${title} - Prévue le ${date} à ${time}.`;
     await pool.query(`INSERT INTO notifications (user_id, title, message, link) SELECT id, 'Nouvelle Réunion Programmée', $1, $2 FROM users WHERE status = 'approved'`, [msg, `/meetings/${meetingId}`]);
-    
-    // 🚀 PUSH NOTIFICATION À TOUS LES MEMBRES ACTIFS
     await sendPushToAllApproved("📅 Nouvelle Réunion ADC", msg);
-
     res.json({ id: meetingId });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -382,12 +388,11 @@ app.delete("/api/meetings/:id", authenticateToken, requireAdmin, async (req, res
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// ROUTE : CHECK VERSION OTA
 app.get("/api/version", (req, res) => {
   res.json({
     version: "1.0.0",
     url: "https://adc-reunion.vercel.app/ADC-Presence.apk",
-    releaseNotes: "Ajout des Notifications Push et correction des erreurs Android.",
+    releaseNotes: "Correction des notifications et compatibilité Android 13+",
     forceUpdate: true
   });
 });
