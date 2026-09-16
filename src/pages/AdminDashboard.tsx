@@ -146,7 +146,7 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
       if (!res.ok) throw new Error();
       
       setSelectedUser((prev: any) => prev ? { ...prev, role: newRole } : null);
-      setPopup({ isOpen: true, title: 'Rôle Modifié', msg: `Le rôle a été changé en ${newRole.toUpperCase()}.`, type: 'success' });
+      setPopup({ isOpen: true, title: 'Rôle Modifié', msg: `Rôle mis à jour : ${newRole.toUpperCase()}.`, type: 'success' });
       fetchData();
     } catch {
       setPopup({ isOpen: true, title: 'Erreur', msg: 'Impossible de modifier le rôle.', type: 'danger' });
@@ -228,7 +228,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
         }
       `}</style>
 
-      {/* HEADER PRINCIPAL */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-800 tracking-tight uppercase">
@@ -267,7 +266,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
         </div>
       </div>
 
-      {/* STATS KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 print:hidden">
         <StatCard label="Membres" val={stats.totalMembers} color="emerald" icon={<Users size={20} />} />
         <StatCard label="En Attente" val={stats.pendingMembers} color="amber" icon={<UserPlus size={20} />} />
@@ -275,7 +273,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
         <StatCard label="Présence" val={`${stats.averageAttendance}%`} color="purple" icon={<TrendingUp size={20} />} />
       </div>
 
-      {/* FILTRES SYLOB */}
       <div className="print:hidden">
         {activeTab === 'members' && (
           <SylobFilterBuilder
@@ -340,65 +337,73 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
-              {displayedUsers.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => setSelectedUser(u)}
-                  className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] shadow-xs border border-slate-100 cursor-pointer hover:shadow-md transition-all flex items-center justify-between gap-3 active:scale-[0.99]"
-                >
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    {u.photo_url && u.photo_url !== 'EMPTY' ? (
-                      <img src={u.photo_url} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl object-cover shrink-0 border border-slate-100" />
-                    ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0">
-                        {u.first_name?.[0]}{u.last_name?.[0]}
-                      </div>
-                    )}
-                    <div className="truncate">
-                      <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate uppercase">{u.first_name} {u.last_name}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                          u.role === 'admin' ? 'bg-rose-50 text-rose-600' :
-                          u.role === 'chef' ? 'bg-amber-50 text-amber-700' :
-                          'bg-emerald-50 text-emerald-600'
-                        }`}>
-                          {u.role}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-semibold truncate">{u.district || u.province}</span>
+              {displayedUsers.map((u) => {
+                const hasPhoto = u.photo_url && u.photo_url !== 'EMPTY' && !u.photo_url.includes('EMPTY');
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setSelectedUser(u)}
+                    className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] shadow-xs border border-slate-100 cursor-pointer hover:shadow-md transition-all flex items-center justify-between gap-3 active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      {hasPhoto ? (
+                        <img 
+                          src={u.photo_url} 
+                          alt=""
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl object-cover shrink-0 border border-slate-100" 
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0">
+                          {u.first_name?.[0]}{u.last_name?.[0]}
+                        </div>
+                      )}
+                      <div className="truncate">
+                        <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm truncate uppercase">{u.first_name} {u.last_name}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                            u.role === 'admin' ? 'bg-rose-50 text-rose-600' :
+                            u.role === 'chef' ? 'bg-amber-50 text-amber-700' :
+                            'bg-emerald-50 text-emerald-600'
+                          }`}>
+                            {u.role}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-semibold truncate">{u.district || u.province}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {u.status === 'pending' && (
-                      <button
-                        onClick={(e) => handleStatus(u.id, 'approved', e)}
-                        className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-                        title="Valider"
-                      >
-                        <Check size={15} />
-                      </button>
-                    )}
-                    {isSuperAdmin && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete({ isOpen: true, id: u.id, type: 'user' });
-                        }}
-                        className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {u.status === 'pending' && (
+                        <button
+                          onClick={(e) => handleStatus(u.id, 'approved', e)}
+                          className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                          title="Valider"
+                        >
+                          <Check size={15} />
+                        </button>
+                      )}
+                      {isSuperAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete({ isOpen: true, id: u.id, type: 'user' });
+                          }}
+                          className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       ) : activeTab === 'meetings' ? (
-        /* ==================== RÉUNIONS AVEC BOUTON SUPPRIMER TOUJOURS VISIBLE ==================== */
         <div className="space-y-4 sm:space-y-6 print:hidden">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
             <div className="relative flex-1">
@@ -429,7 +434,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
                       <h3 className="text-base sm:text-lg font-black text-slate-800 line-clamp-2">{m.title}</h3>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`px-2 py-0.5 text-[9px] font-black uppercase text-white rounded-md ${s.color}`}>{s.label}</span>
-                        {/* BOUTON SUPPRIMER RÉUNION PERMANENT ET CLIQUEABLE */}
                         {isSuperAdmin && (
                           <button
                             onClick={(e) => {
@@ -462,7 +466,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
           </div>
         </div>
       ) : (
-        /* ==================== BADGES ET IMPRESSION ==================== */
         <div className="space-y-6">
           <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-slate-100 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 print:hidden">
             <div className="flex items-center gap-3">
@@ -503,7 +506,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
         </div>
       )}
 
-      {/* MODAL CRÉATION RÉUNION */}
       <AnimatePresence>
         {showNewMeeting && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
@@ -528,7 +530,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
         )}
       </AnimatePresence>
 
-      {/* MODAL PROFIL ADHÉRENT AVEC CHANGEMENT DE RÔLE HIÉRARCHIQUE */}
       <AnimatePresence>
         {selectedUser && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
@@ -536,8 +537,14 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
               <button onClick={() => setSelectedUser(null)} className="absolute top-5 right-5 p-2 bg-slate-100 text-slate-400 hover:text-slate-800 rounded-full transition-all cursor-pointer"><X size={18} /></button>
               
               <div className="flex flex-col items-center mb-6 text-center">
-                {selectedUser.photo_url && selectedUser.photo_url !== 'EMPTY' ? (
-                  <img src={selectedUser.photo_url} className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl object-cover border-4 border-emerald-50 shadow-md mb-3" />
+                {selectedUser.photo_url && selectedUser.photo_url !== 'EMPTY' && !selectedUser.photo_url.includes('EMPTY') ? (
+                  <img 
+                    src={selectedUser.photo_url} 
+                    alt="" 
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl object-cover border-4 border-emerald-50 shadow-md mb-3" 
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
                 ) : (
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-2xl mb-3">
                     {selectedUser.first_name?.[0]}{selectedUser.last_name?.[0]}
@@ -551,7 +558,6 @@ export default function AdminDashboard({ initialTab }: { initialTab?: 'members' 
                 </span>
               </div>
 
-              {/* BOÎTE D'ATTRIBUTION DU RÔLE (ADMIN SEULEMENT) */}
               {isSuperAdmin && (
                 <div className="bg-emerald-50/70 border border-emerald-200/80 p-4 rounded-2xl mb-4">
                   <div className="flex items-center justify-between mb-2">

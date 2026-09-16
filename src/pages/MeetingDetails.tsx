@@ -104,7 +104,7 @@ export default function MeetingDetails() {
       await apiFetch(`/api/meetings/${id}`, { method: 'PUT', body: JSON.stringify(editForm) });
       setMeeting({ ...meeting, ...editForm });
       setIsEditingInfo(false);
-      setPopup({ isOpen: true, title: 'Succès', msg: 'Les informations ont été mises à jour.', type: 'success' });
+      setPopup({ isOpen: true, title: 'Succès', msg: 'Informations mises à jour.', type: 'success' });
     } catch (err) {
       setPopup({ isOpen: true, title: 'Erreur', msg: 'Impossible de modifier la réunion.', type: 'danger' });
     } finally {
@@ -121,7 +121,7 @@ export default function MeetingDetails() {
         body: JSON.stringify({ user_id: userId, status }),
       });
     } catch (err) {
-      setPopup({ isOpen: true, title: 'Erreur', msg: 'Erreur de synchronisation réseau.', type: 'danger' });
+      setPopup({ isOpen: true, title: 'Erreur', msg: 'Erreur de synchronisation.', type: 'danger' });
       fetchData();
     }
   };
@@ -131,7 +131,7 @@ export default function MeetingDetails() {
     try {
       await apiFetch(`/api/meetings/${id}/report`, { method: 'PUT', body: JSON.stringify({ report }) });
       setMeeting({ ...meeting, report });
-      setPopup({ isOpen: true, title: 'Enregistré', msg: 'Le procès-verbal est sauvegardé.', type: 'success' });
+      setPopup({ isOpen: true, title: 'Enregistré', msg: 'Procès-verbal sauvegardé.', type: 'success' });
     } catch (err) {
       setPopup({ isOpen: true, title: 'Erreur', msg: 'Erreur de sauvegarde.', type: 'danger' });
     } finally {
@@ -459,63 +459,72 @@ export default function MeetingDetails() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {displayedAttendance.map((a) => (
-                        <tr key={a.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="p-5 pl-8">
-                            <div className="flex items-center gap-4">
-                              {a.photo_url && a.photo_url !== 'EMPTY' ? (
-                                <img src={a.photo_url} className="w-12 h-12 rounded-2xl object-cover shadow-sm border border-slate-100" />
-                              ) : (
-                                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm border border-white shadow-sm">
-                                  {a.first_name?.[0]}{a.last_name?.[0]}
+                      {displayedAttendance.map((a) => {
+                        const hasPhoto = a.photo_url && a.photo_url !== 'EMPTY' && !a.photo_url.includes('EMPTY');
+                        return (
+                          <tr key={a.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="p-5 pl-8">
+                              <div className="flex items-center gap-4">
+                                {hasPhoto ? (
+                                  <img 
+                                    src={a.photo_url} 
+                                    alt="" 
+                                    className="w-12 h-12 rounded-2xl object-cover shadow-sm border border-slate-100" 
+                                    loading="lazy"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-sm border border-emerald-100/60 shadow-xs">
+                                    {a.first_name?.[0]}{a.last_name?.[0]}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-extrabold text-slate-800 text-sm uppercase">{a.first_name} {a.last_name}</div>
+                                  <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{a.phone}</div>
                                 </div>
+                              </div>
+                            </td>
+                            <td className="p-5 text-xs font-bold text-slate-600 uppercase">
+                              <div>{a.district || a.region || 'N/A'}</div>
+                              {a.province && <div className="text-[10px] text-slate-400 font-medium">{a.province}</div>}
+                            </td>
+                            <td className="p-5 pr-8 text-right">
+                              {canManage ? (
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleUpdateAttendance(a.id, 'present')}
+                                    className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                                      a.status === 'present'
+                                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
+                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                    }`}
+                                  >
+                                    <Check size={14} /> Présent
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateAttendance(a.id, 'absent')}
+                                    className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+                                      a.status === 'absent'
+                                        ? 'bg-rose-500 text-white shadow-md shadow-rose-200 scale-105'
+                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                    }`}
+                                  >
+                                    <X size={14} /> Absent
+                                  </button>
+                                </div>
+                              ) : (
+                                <span
+                                  className={`inline-flex items-center px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                                    a.status === 'present' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
+                                  }`}
+                                >
+                                  {a.status === 'present' ? 'Présent' : 'Absent'}
+                                </span>
                               )}
-                              <div>
-                                <div className="font-extrabold text-slate-800 text-sm uppercase">{a.first_name} {a.last_name}</div>
-                                <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{a.phone}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-5 text-xs font-bold text-slate-600 uppercase">
-                            <div>{a.district || a.region || 'N/A'}</div>
-                            {a.province && <div className="text-[10px] text-slate-400 font-medium">{a.province}</div>}
-                          </td>
-                          <td className="p-5 pr-8 text-right">
-                            {canManage ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleUpdateAttendance(a.id, 'present')}
-                                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
-                                    a.status === 'present'
-                                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
-                                      : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                                  }`}
-                                >
-                                  <Check size={14} /> Présent
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateAttendance(a.id, 'absent')}
-                                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
-                                    a.status === 'absent'
-                                      ? 'bg-rose-500 text-white shadow-md shadow-rose-200 scale-105'
-                                      : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                                  }`}
-                                >
-                                  <X size={14} /> Absent
-                                </button>
-                              </div>
-                            ) : (
-                              <span
-                                className={`inline-flex items-center px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                                  a.status === 'present' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
-                                }`}
-                              >
-                                {a.status === 'present' ? 'Présent' : 'Absent'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
