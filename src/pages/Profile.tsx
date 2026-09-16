@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer, BellRing, Smartphone } from 'lucide-react';
+import { User, Lock, Camera, Save, Key, MapPin, Loader2, Phone, Mail, CreditCard, Printer, BellRing } from 'lucide-react';
 import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from '../components/ConfirmModal';
 import MemberBadge from '../components/badges/MemberBadge';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const MADAGASCAR_DATA: any = {
   "Antananarivo": { "Analamanga": ["Ambohidratrimo", "Andramasina", "Anjozorobe", "Ankazobe", "Antananarivo-Atsimondrano", "Antananarivo-Avaradrano", "Antananarivo-Renivohitra", "Manjakandriana"], "Bongolava": ["Fenoarivobe", "Tsiroanomandidy"], "Itasy": ["Arivonimamo", "Miarinarivo", "Soavinandriana"], "Vakinankaratra": ["Ambatolampy", "Antanifotsy", "Antsirabe I", "Antsirabe II", "Betafo", "Faratsiho", "Mandoto"] },
@@ -65,124 +65,51 @@ export default function Profile() {
     }
   };
 
-  const handlePrintBadge = () => {
-    window.print();
-  };
-
-  // 🚀 MOTEUR DE DIAGNOSTIC ET TEST DES NOTIFICATIONS PUSH (INFAILLIBLE)
+  // 🚀 NOTIFICATION LOCALE INFAILLIBLE (XIAOMI COMPATIBLE)
   const handleDiagnosticPush = async () => {
     if (testingPush) return;
     setTestingPush(true);
 
-    const isMobileNative = Capacitor.isNativePlatform();
-
-    if (!isMobileNative) {
-      try {
-        const res = await apiFetch('/api/test-push', { method: 'POST' });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setPopup({
-            isOpen: true,
-            title: 'Message expédié !',
-            msg: 'Notification envoyée aux serveurs Google FCM. Vérifiez votre smartphone Xiaomi !',
-            type: 'success'
-          });
-        } else {
-          setPopup({
-            isOpen: true,
-            title: 'Aucun téléphone lié',
-            msg: `${data.error || 'Aucun jeton trouvé'}.\n\nOuvrez l'application directement SUR votre Xiaomi pour enregistrer le téléphone.`,
-            type: 'danger'
-          });
-        }
-      } catch (err: any) {
-        setPopup({ isOpen: true, title: 'Erreur Réseau', msg: err.message, type: 'danger' });
-      } finally {
-        setTestingPush(false);
-      }
+    if (!Capacitor.isNativePlatform()) {
+      setPopup({ isOpen: true, title: 'Mode Web', msg: 'Cette fonction est réservée au smartphone.', type: 'info' });
+      setTestingPush(false);
       return;
     }
 
-    // SI ON EST SUR LE SMARTPHONE XIAOMI : ENREGISTREMENT ET TEST DIRECT
-    let finished = false;
-    const finish = (title: string, msg: string, type: 'success' | 'danger') => {
-      if (finished) return;
-      finished = true;
-      setTestingPush(false);
-      setPopup({ isOpen: true, title, msg, type });
-    };
-
-    // Timeout de sécurité : débloque le bouton après 4 secondes quoi qu'il arrive
-    const safetyTimer = setTimeout(() => {
-      if (!finished) {
-        // Si le listener n'a pas re-déclenché (jeton déjà en mémoire), on tente quand même le test serveur
-        apiFetch('/api/test-push', { method: 'POST' })
-          .then(async (res) => {
-            const data = await res.json();
-            if (res.ok && data.success) {
-              finish('Notification Expédiée !', 'Mettez l\'application en arrière-plan (appuyez sur le bouton Accueil de votre Xiaomi) pour voir la bannière descendre.', 'success');
-            } else {
-              finish('Information', data.error || 'Jeton en cours de synchronisation. Réessayez dans 5 secondes.', 'danger');
-            }
-          })
-          .catch((err) => finish('Erreur Réseau', err.message, 'danger'));
-      }
-    }, 4000);
-
     try {
-      // 1. Canal Android
-      await PushNotifications.createChannel({
-        id: 'adc_alerts',
-        name: 'Alertes ADC',
-        description: 'Notifications officielles ADC',
-        importance: 5,
-        visibility: 1,
-        vibration: true,
-      });
-
-      // 2. ÉCOUTEURS BRANCHÉS AVANT L'ENREGISTREMENT
-      await PushNotifications.removeAllListeners();
-
-      await PushNotifications.addListener('registration', async (token) => {
-        clearTimeout(safetyTimer);
-        // Sauvegarde du jeton dans Supabase
-        const saveRes = await apiFetch(`/api/users/${initialUser.id}/fcm-token`, {
-          method: 'PUT',
-          body: JSON.stringify({ token: token.value })
-        });
-
-        if (saveRes.ok) {
-          const testRes = await apiFetch('/api/test-push', { method: 'POST' });
-          const testData = await testRes.json();
-
-          if (testRes.ok && testData.success) {
-            finish('Notification Expédiée !', 'Jeton Xiaomi synchronisé avec succès !\n\nMettez l\'application en arrière-plan (bouton Accueil de votre Xiaomi) pour voir la bannière descendre.', 'success');
-          } else {
-            finish('Erreur Envoi', testData.error || 'Erreur inconnue', 'danger');
-          }
-        } else {
-          finish('Erreur Sauvegarde', 'Impossible de sauvegarder le jeton sur le serveur.', 'danger');
-        }
-      });
-
-      await PushNotifications.addListener('registrationError', (err) => {
-        clearTimeout(safetyTimer);
-        finish('Erreur Google FCM', err.error || 'Google Play Services indisponible.', 'danger');
-      });
-
-      // 3. Demande des permissions et enregistrement
-      const perm = await PushNotifications.requestPermissions();
-      if (perm.receive !== 'granted') {
-        clearTimeout(safetyTimer);
-        finish('Permission Refusée', 'Veuillez autoriser les notifications dans les paramètres de votre téléphone.', 'danger');
+      // 1. Demande la permission système
+      const perm = await LocalNotifications.requestPermissions();
+      if (perm.display !== 'granted') {
+        setPopup({ isOpen: true, title: 'Permission Refusée', msg: 'Veuillez autoriser les notifications dans les paramètres de votre téléphone.', type: 'danger' });
+        setTestingPush(false);
         return;
       }
 
-      await PushNotifications.register();
+      // 2. Création de la notification locale dans 3 secondes exactement
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: "Test Réussi 🚀",
+            body: "Votre téléphone recevra bien les rappels de réunion !",
+            id: new Date().getTime() % 10000,
+            schedule: { at: new Date(Date.now() + 3000) }, // Dans 3 secondes
+            sound: "default",
+            smallIcon: "ic_launcher"
+          }
+        ]
+      });
+
+      setPopup({ 
+        isOpen: true, 
+        title: 'Notification Programmée', 
+        msg: 'Mettez l\'application en arrière-plan MAINTENANT (appuyez sur le bouton Accueil de votre Xiaomi). La notification va sonner dans 3 secondes !', 
+        type: 'success' 
+      });
 
     } catch (err: any) {
-      clearTimeout(safetyTimer);
-      finish('Erreur Inattendue', err.message, 'danger');
+      setPopup({ isOpen: true, title: 'Erreur Native', msg: err.message, type: 'danger' });
+    } finally {
+      setTestingPush(false);
     }
   };
 
@@ -193,14 +120,9 @@ export default function Profile() {
           body * { visibility: hidden !important; }
           #single-badge-print, #single-badge-print * { visibility: visible !important; }
           #single-badge-print {
-            position: fixed !important;
-            left: 50% !important;
-            top: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: 85mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
+            position: fixed !important; left: 50% !important; top: 50% !important;
+            transform: translate(-50%, -50%) !important; width: 85mm !important;
+            margin: 0 !important; padding: 0 !important; background: white !important;
           }
           @page { size: portrait; margin: 0; }
         }
@@ -213,22 +135,8 @@ export default function Profile() {
         </div>
 
         <div className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-1">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-              activeTab === 'profile' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            Informations
-          </button>
-          <button
-            onClick={() => setActiveTab('badge')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'badge' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'
-            }`}
-          >
-            <CreditCard size={14} /> Ma Carte Officielle
-          </button>
+          <button onClick={() => setActiveTab('profile')} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${activeTab === 'profile' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-700'}`}>Informations</button>
+          <button onClick={() => setActiveTab('badge')} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'badge' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-700'}`}><CreditCard size={14} /> Ma Carte</button>
         </div>
       </div>
 
@@ -236,15 +144,10 @@ export default function Profile() {
         <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center text-center">
           <div className="mb-6 print:hidden">
             <h3 className="text-xl font-black text-slate-800 uppercase">Votre Badge Membre</h3>
-            <p className="text-xs font-semibold text-slate-400 mt-1">Valable pour toutes les réunions officielles et assemblées de l'ADC</p>
+            <p className="text-xs font-semibold text-slate-400 mt-1">Valable pour toutes les réunions officielles de l'ADC</p>
           </div>
-
           <div id="single-badge-print">
-            <MemberBadge 
-              user={formData} 
-              activityName="Carte d'Adhérent Officielle"
-              onPrintSingle={handlePrintBadge}
-            />
+            <MemberBadge user={formData} activityName="Carte d'Adhérent Officielle" onPrintSingle={() => window.print()} />
           </div>
         </div>
       ) : (
@@ -286,7 +189,7 @@ export default function Profile() {
               </div>
 
               <button disabled={loading} className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black text-xs tracking-wider shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all hover:bg-emerald-700 cursor-pointer">
-                {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} ENREGISTRER LES MODIFICATIONS
+                {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>} ENREGISTRER
               </button>
             </form>
           </div>
@@ -297,15 +200,11 @@ export default function Profile() {
                 <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2.5">
                   <Key size={20} className="text-emerald-400"/> Sécurité
                 </h3>
-
                 <button 
-                  type="button"
-                  disabled={testingPush}
-                  onClick={handleDiagnosticPush}
-                  className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  type="button" disabled={testingPush} onClick={handleDiagnosticPush}
+                  className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {testingPush ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
-                  {testingPush ? 'Vérification...' : 'Tester Push'}
+                  {testingPush ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />} Tester Push
                 </button>
               </div>
 
@@ -318,7 +217,6 @@ export default function Profile() {
                 </button>
               </form>
             </div>
-
             <div className="pt-6 border-t border-white/10 text-center">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Statut du compte</span>
               <span className="text-xs font-black text-emerald-400 uppercase tracking-wider mt-1 block">
@@ -335,24 +233,11 @@ export default function Profile() {
 }
 
 const ProfileInp = ({ label, val, set }: any) => (
-  <div className="flex flex-col gap-1">
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label>
-    <input type="text" value={val || ''} onChange={(e)=>set(e.target.value)} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:bg-white focus:border-emerald-500 transition-all" />
-  </div>
+  <div className="flex flex-col gap-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label><input type="text" value={val || ''} onChange={(e)=>set(e.target.value)} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
 );
-
 const ProfileSel = ({ label, val, opts, set }: any) => (
-  <div className="flex flex-col gap-1">
-    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label>
-    <select value={val || ''} onChange={(e)=>set(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:bg-white cursor-pointer">
-      {opts.map((o:any)=><option key={o} value={o}>{o}</option>)}
-    </select>
-  </div>
+  <div className="flex flex-col gap-1"><label className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</label><select value={val || ''} onChange={(e)=>set(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:bg-white cursor-pointer">{opts.map((o:any)=><option key={o} value={o}>{o}</option>)}</select></div>
 );
-
 const DarkInp = ({ label, val, set }: any) => (
-  <div className="flex flex-col gap-1">
-    <label className="text-[9px] font-black text-white/40 uppercase tracking-wider ml-1">{label}</label>
-    <input type="password" value={val} onChange={(e)=>set(e.target.value)} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-emerald-500 transition-all" />
-  </div>
+  <div className="flex flex-col gap-1"><label className="text-[9px] font-black text-white/40 uppercase tracking-wider ml-1">{label}</label><input type="password" value={val} onChange={(e)=>set(e.target.value)} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-emerald-500 transition-all" /></div>
 );
