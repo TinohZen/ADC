@@ -9,6 +9,7 @@ import { apiFetch } from '../lib/apiFetch';
 import ConfirmModal from './ConfirmModal';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -26,22 +27,17 @@ export default function Layout() {
   const isCurrent = (path: string) => location.pathname === path && !location.search;
 
   useEffect(() => {
-    // 1. Charger datas
     apiFetch('/api/notifications').then(res => res.json()).then(data => setDbNotifications(data || [])).catch(console.error);
     apiFetch('/api/meetings').then(res => res.json()).then(data => setMeetings(data || [])).catch(console.error);
 
-    // 2. Écoute Temps Réel WebSockets
     const channel = supabase.channel('realtime-notifs')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
         setDbNotifications((prev) => [payload.new, ...prev]);
       }).subscribe();
 
-    // 3. 📱 ACTIVATION DES PUSH NOTIFICATIONS (FIREBASE / CAPACITOR)
-    
-
-    
     if (Capacitor.isNativePlatform()) {
-      // Création du canal obligatoire pour Android 8 à 15
+      LocalNotifications.requestPermissions().catch(console.error);
+
       PushNotifications.createChannel({
         id: 'adc_alerts',
         name: 'Alertes ADC',
@@ -64,7 +60,25 @@ export default function Layout() {
         }).catch(console.error);
       });
 
+      PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              title: notification.title || 'ADC Présence',
+              body: notification.body || '',
+              id: Date.now() % 100000,
+              channelId: 'adc_alerts',
+              smallIcon: 'ic_launcher',
+            }
+          ]
+        });
+      });
+
       PushNotifications.addListener('pushNotificationActionPerformed', () => {
+        navigate('/dashboard');
+      });
+
+      LocalNotifications.addListener('localNotificationActionPerformed', () => {
         navigate('/dashboard');
       });
     }
@@ -72,7 +86,6 @@ export default function Layout() {
     return () => { supabase.removeChannel(channel); };
   }, [user.id]);
 
-  // 4. MOTEUR D'ALERTES DE RÉUNIONS INTELLIGENT
   const smartAlerts = useMemo(() => {
     const alerts: any[] = [];
     const now = new Date();
@@ -130,7 +143,6 @@ export default function Layout() {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-4 relative">
-          
           <button 
             onClick={() => setShowNotifPanel(!showNotifPanel)}
             className="relative p-2.5 rounded-full text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
