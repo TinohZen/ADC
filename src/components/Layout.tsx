@@ -37,14 +37,26 @@ export default function Layout() {
       }).subscribe();
 
     // 3. 📱 ACTIVATION DES PUSH NOTIFICATIONS (FIREBASE / CAPACITOR)
+    
+
+    
     if (Capacitor.isNativePlatform()) {
-      PushNotifications.requestPermissions().then(result => {
+      // Création du canal obligatoire pour Android 8 à 15
+      PushNotifications.createChannel({
+        id: 'adc_alerts',
+        name: 'Alertes ADC',
+        description: 'Notifications officielles de réunions et adhésions ADC',
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+      }).catch(console.error);
+
+      PushNotifications.requestPermissions().then((result) => {
         if (result.receive === 'granted') {
           PushNotifications.register();
         }
       });
 
-      // Quand on reçoit le jeton du téléphone, on l'envoie à ton backend
       PushNotifications.addListener('registration', async (token) => {
         await apiFetch(`/api/users/${user.id}/fcm-token`, {
           method: 'PUT',
@@ -52,9 +64,8 @@ export default function Layout() {
         }).catch(console.error);
       });
 
-      // Actions quand on clique sur la pop-up Push Android/iOS
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        navigate('/dashboard'); 
+      PushNotifications.addListener('pushNotificationActionPerformed', () => {
+        navigate('/dashboard');
       });
     }
 

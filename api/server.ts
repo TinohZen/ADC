@@ -70,13 +70,28 @@ const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   next();
 };
 
+// 🚀 FONCTIONS D'ENVOI PUSH AVEC CANAL ANDROID SYSTÈME
 async function sendPushToUser(userId: number, title: string, body: string) {
   if (!firebaseActive) return;
   try {
     const res = await pool.query("SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL", [userId]);
     const token = res.rows[0]?.fcm_token;
-    if (token) await getMessaging().send({ token, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) {}
+    if (token) {
+      await getMessaging().send({
+        token,
+        notification: { title, body },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "adc_alerts",
+            sound: "default",
+            defaultVibrateTimings: true,
+            priority: "high"
+          }
+        }
+      });
+    }
+  } catch (err) { console.error("Erreur Push:", err); }
 }
 
 async function sendPushToRole(roles: string[], title: string, body: string) {
@@ -84,8 +99,22 @@ async function sendPushToRole(roles: string[], title: string, body: string) {
   try {
     const res = await pool.query("SELECT fcm_token FROM users WHERE role = ANY($1) AND fcm_token IS NOT NULL", [roles]);
     const tokens = res.rows.map(r => r.fcm_token);
-    if (tokens.length > 0) await getMessaging().sendEachForMulticast({ tokens, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) {}
+    if (tokens.length > 0) {
+      await getMessaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "adc_alerts",
+            sound: "default",
+            defaultVibrateTimings: true,
+            priority: "high"
+          }
+        }
+      });
+    }
+  } catch (err) { console.error("Erreur Push Roles:", err); }
 }
 
 async function sendPushToAllApproved(title: string, body: string) {
@@ -93,8 +122,22 @@ async function sendPushToAllApproved(title: string, body: string) {
   try {
     const res = await pool.query("SELECT fcm_token FROM users WHERE status = 'approved' AND fcm_token IS NOT NULL");
     const tokens = res.rows.map(r => r.fcm_token);
-    if (tokens.length > 0) await getMessaging().sendEachForMulticast({ tokens, notification: { title, body }, android: { priority: "high" } });
-  } catch (err) {}
+    if (tokens.length > 0) {
+      await getMessaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "adc_alerts",
+            sound: "default",
+            defaultVibrateTimings: true,
+            priority: "high"
+          }
+        }
+      });
+    }
+  } catch (err) { console.error("Erreur Push Tous:", err); }
 }
 
 async function uploadPhoto(base64Str: string, userId: string | number): Promise<string> {
