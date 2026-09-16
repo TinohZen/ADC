@@ -11,21 +11,31 @@ import { getMessaging } from "firebase-admin/messaging";
 
 dotenv.config();
 
+
+// 🚀 INITIALISATION FIREBASE ADMIN BLINDÉE POUR VERCEL
 let firebaseActive = false;
 try {
   let serviceAccount: any = null;
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  } else if (fs.existsSync('./firebase-service-account.json')) {
-    serviceAccount = JSON.parse(fs.readFileSync('./firebase-service-account.json', 'utf8'));
+  const envAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+  if (envAccount) {
+    serviceAccount = typeof envAccount === "string" ? JSON.parse(envAccount) : envAccount;
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    }
+  } else if (fs.existsSync("./firebase-service-account.json")) {
+    serviceAccount = JSON.parse(fs.readFileSync("./firebase-service-account.json", "utf8"));
   }
+
   if (serviceAccount) {
     initializeApp({ credential: cert(serviceAccount) });
     firebaseActive = true;
     console.log("🔥 Firebase Admin (Push Notifications) ACTIVÉ");
+  } else {
+    console.warn("⚠️ Configuration Firebase introuvable sur Vercel.");
   }
-} catch (e) {
-  console.error("Erreur Firebase:", e);
+} catch (e: any) {
+  console.error("Erreur parsing Firebase:", e.message);
 }
 
 const { Pool } = pg;
