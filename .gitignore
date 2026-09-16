@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+# Clés privées Firebase et Google Cloud
+firebase-service-account.json
+*.keystore
+*.jks

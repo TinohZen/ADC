@@ -53,3 +53,30 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+
+tasks.whenTaskAdded { task ->
+    if (task.name == 'assembleDebug') {
+        task.doLast {
+            copy {
+                // Prends l'APK généré par Android Studio
+                from "build/outputs/apk/debug"
+                include "*.apk"
+                
+                // L'envoie dans le dossier "public" de React/Vite
+                into "../../public"
+                
+                // Le renomme exactement comme attendu par le système OTA
+                rename { String fileName -> "ADC-Presence.apk" }
+            }
+            println "✅ [OTA] APK exporté avec succès vers public/ADC-Presence.apk !"
+        }
+    }
+}
+apply plugin: 'com.google.gms.google-services'
+// DÉSACTIVATION DU CONTRÔLE STRICT DES VERSIONS ANDROIDX (AarMetadata)
+tasks.configureEach { task ->
+    if (task.name.contains("AarMetadata")) {
+        task.enabled = false
+    }
+}

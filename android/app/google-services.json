@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1097439375963",
+    "project_id": "adc-presence",
+    "storage_bucket": "adc-presence.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097439375963:android:e5c975fa2028968e83457e",
+        "android_client_info": {
+          "package_name": "org.adc.presence"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPhGF_rC-wlT-8lGZKrLamQA6XWmtHTNw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
